@@ -3,20 +3,33 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: PitchMind AI — pitch coaching platform API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: Auth
+    description: Browser and mobile authentication endpoints.
+  - name: Ideas
+    description: Startup idea management
+  - name: Decks
+    description: Auto-generated pitch decks
+  - name: Sessions
+    description: Pitch training sessions with AI investor personas
+  - name: Personas
+    description: Investor persona presets
+  - name: Learning
+    description: Founder learning topics
+  - name: Dashboard
+    description: Aggregated dashboard metrics
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,13 +37,734 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /auth/user:
+    get:
+      tags: [Auth]
+      operationId: getCurrentAuthUser
+      summary: Get the currently authenticated user
+      parameters:
+        - $ref: '#/components/parameters/AuthorizationSessionHeader'
+        - $ref: '#/components/parameters/SessionCookie'
+      responses:
+        '200':
+          description: Auth status resolved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthUserEnvelope'
+  /login:
+    get:
+      tags: [Auth]
+      operationId: beginBrowserLogin
+      summary: Start the browser OIDC login flow
+      parameters:
+        - name: returnTo
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '302':
+          description: Redirect to the OIDC authorization endpoint.
+  /callback:
+    get:
+      tags: [Auth]
+      operationId: handleBrowserLoginCallback
+      summary: Complete the browser OIDC login flow
+      parameters:
+        - name: code
+          in: query
+          required: false
+          schema: { type: string }
+        - name: state
+          in: query
+          required: false
+          schema: { type: string }
+        - name: iss
+          in: query
+          required: false
+          schema: { type: string, format: uri }
+      responses:
+        '302':
+          description: Redirect after login.
+  /logout:
+    get:
+      tags: [Auth]
+      operationId: logoutBrowserSession
+      summary: Clear the session and begin OIDC logout
+      parameters:
+        - $ref: '#/components/parameters/AuthorizationSessionHeader'
+        - $ref: '#/components/parameters/SessionCookie'
+      responses:
+        '302':
+          description: Redirect to the OIDC provider logout URL.
+  /mobile-auth/token-exchange:
+    post:
+      tags: [Auth]
+      operationId: exchangeMobileAuthorizationCode
+      summary: Exchange a mobile OIDC code for a session token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MobileTokenExchangeRequest'
+      responses:
+        '200':
+          description: Session created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MobileTokenExchangeSuccess'
+        '400':
+          description: Bad request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /mobile-auth/logout:
+    post:
+      tags: [Auth]
+      operationId: logoutMobileSession
+      summary: Delete a mobile session token
+      parameters:
+        - $ref: '#/components/parameters/AuthorizationSessionHeader'
+      responses:
+        '200':
+          description: Logout processed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LogoutSuccess'
+
+  /ideas:
+    get:
+      tags: [Ideas]
+      operationId: listIdeas
+      summary: List the current user's ideas
+      responses:
+        '200':
+          description: Ideas list
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Idea' }
+    post:
+      tags: [Ideas]
+      operationId: createIdea
+      summary: Create a new raw idea
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateIdeaInput' }
+      responses:
+        '200':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Idea' }
+  /ideas/{id}:
+    get:
+      tags: [Ideas]
+      operationId: getIdea
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Idea detail
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Idea' }
+    patch:
+      tags: [Ideas]
+      operationId: updateIdea
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateIdeaInput' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Idea' }
+    delete:
+      tags: [Ideas]
+      operationId: deleteIdea
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SuccessResponse' }
+  /ideas/{id}/structure:
+    post:
+      tags: [Ideas]
+      operationId: structureIdea
+      summary: Use AI to extract Problem/Solution/Market/Business/Edge from raw idea
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Structured
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Idea' }
+  /ideas/{id}/validate:
+    post:
+      tags: [Ideas]
+      operationId: validateIdea
+      summary: Compute an idea validation score with strengths and weaknesses
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Validation result
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/IdeaValidation' }
+
+  /ideas/{id}/decks:
+    get:
+      tags: [Decks]
+      operationId: listDecksForIdea
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: List of decks for an idea
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/PitchDeck' }
+    post:
+      tags: [Decks]
+      operationId: generateDeck
+      summary: Auto-generate a pitch deck from a structured idea
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Deck generated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PitchDeck' }
+  /decks/{deckId}:
+    get:
+      tags: [Decks]
+      operationId: getDeck
+      parameters:
+        - name: deckId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Deck detail
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PitchDeck' }
+
+  /personas:
+    get:
+      tags: [Personas]
+      operationId: listPersonas
+      summary: List investor personas
+      responses:
+        '200':
+          description: Personas
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Persona' }
+
+  /sessions:
+    get:
+      tags: [Sessions]
+      operationId: listSessions
+      summary: List the user's pitch training sessions
+      responses:
+        '200':
+          description: Sessions
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/PitchSession' }
+    post:
+      tags: [Sessions]
+      operationId: startSession
+      summary: Start a new pitch training session with an investor persona
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/StartSessionInput' }
+      responses:
+        '200':
+          description: Session created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PitchSession' }
+  /sessions/{id}:
+    get:
+      tags: [Sessions]
+      operationId: getSession
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Session detail with messages
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PitchSessionDetail' }
+  /sessions/{id}/messages:
+    post:
+      tags: [Sessions]
+      operationId: sendSessionMessage
+      summary: Send a pitch turn; AI persona replies with question or feedback
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SendSessionMessageInput' }
+      responses:
+        '200':
+          description: Updated session
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PitchSessionDetail' }
+  /sessions/{id}/finish:
+    post:
+      tags: [Sessions]
+      operationId: finishSession
+      summary: End the session and produce a mistake analysis report
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Finished session with analysis
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PitchSessionDetail' }
+
+  /learning:
+    get:
+      tags: [Learning]
+      operationId: listLearningTopics
+      summary: List founder learning topics
+      responses:
+        '200':
+          description: Topics
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/LearningTopic' }
+  /learning/{slug}:
+    get:
+      tags: [Learning]
+      operationId: getLearningTopic
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Topic detail
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LearningTopic' }
+
+  /dashboard/summary:
+    get:
+      tags: [Dashboard]
+      operationId: getDashboardSummary
+      summary: Aggregate counts and key scores for the dashboard
+      responses:
+        '200':
+          description: Summary
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DashboardSummary' }
+  /dashboard/recent:
+    get:
+      tags: [Dashboard]
+      operationId: getRecentActivity
+      summary: Recent ideas, decks, and sessions
+      responses:
+        '200':
+          description: Recent activity feed
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ActivityItem' }
+  /dashboard/progress:
+    get:
+      tags: [Dashboard]
+      operationId: getProgressSeries
+      summary: Time-series progression of pitch scores
+      responses:
+        '200':
+          description: Progress series
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ProgressPoint' }
+
 components:
+  parameters:
+    AuthorizationSessionHeader:
+      name: Authorization
+      in: header
+      required: false
+      description: Opaque session token — `Bearer <sid>`.
+      schema:
+        type: string
+    SessionCookie:
+      name: sid
+      in: cookie
+      required: false
+      description: Browser session cookie.
+      schema:
+        type: string
   schemas:
     HealthStatus:
       type: object
+      required: [status]
       properties:
         status:
           type: string
-      required:
-        - status
+    SuccessResponse:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
+    AuthUser:
+      type: object
+      required: [id, email, firstName, lastName, profileImageUrl]
+      properties:
+        id: { type: string }
+        email: { type: [string, 'null'], format: email }
+        firstName: { type: [string, 'null'] }
+        lastName: { type: [string, 'null'] }
+        profileImageUrl: { type: [string, 'null'] }
+    AuthUserEnvelope:
+      type: object
+      required: [user]
+      properties:
+        user:
+          oneOf:
+            - $ref: '#/components/schemas/AuthUser'
+            - type: 'null'
+    MobileTokenExchangeRequest:
+      type: object
+      required: [code, code_verifier, redirect_uri, state]
+      properties:
+        code: { type: string, minLength: 1 }
+        code_verifier: { type: string, minLength: 1 }
+        redirect_uri: { type: string, minLength: 1, format: uri }
+        state: { type: string, minLength: 1 }
+        nonce: { type: string, minLength: 1 }
+    MobileTokenExchangeSuccess:
+      type: object
+      required: [token]
+      properties:
+        token: { type: string }
+    LogoutSuccess:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
+          const: true
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }
 
+    Idea:
+      type: object
+      required: [id, userId, title, rawText, status, createdAt, updatedAt]
+      properties:
+        id: { type: string }
+        userId: { type: string }
+        title: { type: string }
+        rawText: { type: string }
+        problem: { type: [string, 'null'] }
+        solution: { type: [string, 'null'] }
+        market: { type: [string, 'null'] }
+        businessModel: { type: [string, 'null'] }
+        competitiveEdge: { type: [string, 'null'] }
+        targetAudience: { type: [string, 'null'] }
+        status:
+          type: string
+          enum: [draft, structured, deck_generated]
+        validationScore: { type: [number, 'null'] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    CreateIdeaInput:
+      type: object
+      required: [title, rawText]
+      properties:
+        title: { type: string, minLength: 1 }
+        rawText: { type: string, minLength: 1 }
+    UpdateIdeaInput:
+      type: object
+      properties:
+        title: { type: string }
+        rawText: { type: string }
+        problem: { type: string }
+        solution: { type: string }
+        market: { type: string }
+        businessModel: { type: string }
+        competitiveEdge: { type: string }
+        targetAudience: { type: string }
+    IdeaValidation:
+      type: object
+      required: [score, strengths, weaknesses, suggestions]
+      properties:
+        score:
+          type: number
+          minimum: 0
+          maximum: 100
+        strengths:
+          type: array
+          items: { type: string }
+        weaknesses:
+          type: array
+          items: { type: string }
+        suggestions:
+          type: array
+          items: { type: string }
+
+    DeckSlide:
+      type: object
+      required: [title, body, layout]
+      properties:
+        title: { type: string }
+        body: { type: string }
+        layout:
+          type: string
+          enum: [title, problem, solution, market, business, edge, demo, traction, ask]
+        bullets:
+          type: array
+          items: { type: string }
+    PitchDeck:
+      type: object
+      required: [id, ideaId, title, slides, createdAt]
+      properties:
+        id: { type: string }
+        ideaId: { type: string }
+        title: { type: string }
+        storyline: { type: [string, 'null'] }
+        slides:
+          type: array
+          items: { $ref: '#/components/schemas/DeckSlide' }
+        createdAt: { type: string, format: date-time }
+
+    Persona:
+      type: object
+      required: [id, slug, name, description, style, intensity]
+      properties:
+        id: { type: string }
+        slug: { type: string }
+        name: { type: string }
+        description: { type: string }
+        style: { type: string }
+        intensity:
+          type: string
+          enum: [easy, medium, hard]
+
+    StartSessionInput:
+      type: object
+      required: [ideaId, personaSlug]
+      properties:
+        ideaId: { type: string }
+        personaSlug: { type: string }
+
+    SessionMessage:
+      type: object
+      required: [id, role, content, createdAt]
+      properties:
+        id: { type: string }
+        role:
+          type: string
+          enum: [user, investor, system]
+        content: { type: string }
+        feedback: { type: [string, 'null'] }
+        confidence: { type: [number, 'null'] }
+        clarity: { type: [number, 'null'] }
+        fillerWords: { type: [number, 'null'] }
+        createdAt: { type: string, format: date-time }
+
+    PitchSession:
+      type: object
+      required: [id, userId, ideaId, personaSlug, status, createdAt]
+      properties:
+        id: { type: string }
+        userId: { type: string }
+        ideaId: { type: string }
+        ideaTitle: { type: [string, 'null'] }
+        personaSlug: { type: string }
+        personaName: { type: [string, 'null'] }
+        status:
+          type: string
+          enum: [active, finished]
+        overallScore: { type: [number, 'null'] }
+        confidenceScore: { type: [number, 'null'] }
+        clarityScore: { type: [number, 'null'] }
+        investorReadiness: { type: [number, 'null'] }
+        summary: { type: [string, 'null'] }
+        createdAt: { type: string, format: date-time }
+        finishedAt: { type: [string, 'null'], format: date-time }
+
+    PitchSessionDetail:
+      allOf:
+        - $ref: '#/components/schemas/PitchSession'
+        - type: object
+          required: [messages]
+          properties:
+            messages:
+              type: array
+              items: { $ref: '#/components/schemas/SessionMessage' }
+            mistakes:
+              type: array
+              items: { $ref: '#/components/schemas/SessionMistake' }
+
+    SessionMistake:
+      type: object
+      required: [title, description, severity]
+      properties:
+        title: { type: string }
+        description: { type: string }
+        suggestion: { type: string }
+        severity:
+          type: string
+          enum: [low, medium, high]
+
+    SendSessionMessageInput:
+      type: object
+      required: [content]
+      properties:
+        content:
+          type: string
+          minLength: 1
+
+    LearningTopic:
+      type: object
+      required: [id, slug, title, summary, category, body, readMinutes]
+      properties:
+        id: { type: string }
+        slug: { type: string }
+        title: { type: string }
+        summary: { type: string }
+        category: { type: string }
+        body: { type: string }
+        readMinutes: { type: integer }
+
+    DashboardSummary:
+      type: object
+      required:
+        - ideaCount
+        - deckCount
+        - sessionCount
+        - finishedSessionCount
+        - latestPitchScore
+        - bestPitchScore
+        - investorReadiness
+        - confidenceLevel
+        - improvementDelta
+      properties:
+        ideaCount: { type: integer }
+        deckCount: { type: integer }
+        sessionCount: { type: integer }
+        finishedSessionCount: { type: integer }
+        latestPitchScore: { type: [number, 'null'] }
+        bestPitchScore: { type: [number, 'null'] }
+        investorReadiness: { type: [number, 'null'] }
+        confidenceLevel: { type: [number, 'null'] }
+        improvementDelta: { type: [number, 'null'] }
+
+    ActivityItem:
+      type: object
+      required: [id, type, title, description, createdAt]
+      properties:
+        id: { type: string }
+        type:
+          type: string
+          enum: [idea_created, idea_structured, deck_generated, session_started, session_finished]
+        title: { type: string }
+        description: { type: string }
+        score: { type: [number, 'null'] }
+        createdAt: { type: string, format: date-time }
+        link: { type: [string, 'null'] }
+
+    ProgressPoint:
+      type: object
+      required: [date, score]
+      properties:
+        date: { type: string, format: date-time }
+        score: { type: number }
+        confidence: { type: [number, 'null'] }
+        clarity: { type: [number, 'null'] }
+        readiness: { type: [number, 'null'] }

@@ -2,19 +2,43 @@
 
 ## Overview
 
-pnpm workspace monorepo using TypeScript. Each package manages its own dependencies.
+pnpm workspace monorepo for **PitchMind AI** — a pitch coaching platform for student / young founders. Helps them turn raw ideas into structured plans, generate decks, and train against AI investor personas.
+
+## Artifacts
+
+- `artifacts/pitchmind` (web) — main React + Vite frontend (Wouter, Tailwind v4, shadcn/ui, Recharts, Framer Motion).
+- `artifacts/api-server` (api) — Express 5 backend with Drizzle ORM, mounted at `/api`.
+- `artifacts/mockup-sandbox` (design) — component preview server.
 
 ## Stack
 
-- **Monorepo tool**: pnpm workspaces
-- **Node.js version**: 24
-- **Package manager**: pnpm
-- **TypeScript version**: 5.9
-- **API framework**: Express 5
-- **Database**: PostgreSQL + Drizzle ORM
+- **Monorepo**: pnpm workspaces
+- **Node.js**: 24, **pnpm**, **TypeScript 5.9**
+- **API**: Express 5, Replit Auth (OIDC), Drizzle ORM, PostgreSQL
 - **Validation**: Zod (`zod/v4`), `drizzle-zod`
-- **API codegen**: Orval (from OpenAPI spec)
-- **Build**: esbuild (CJS bundle)
+- **API contract**: OpenAPI → Orval generates React Query hooks + Zod schemas (`lib/api-client-react`)
+- **Frontend**: React 19, Vite, Tailwind v4, shadcn/ui, Recharts, Framer Motion, Wouter, TanStack Query
+
+## PitchMind features (built)
+
+- Auth-gated app with public landing + login (Replit Auth)
+- Dashboard: stats, progress chart, recent activity, quick actions
+- Ideas: list, create, AI-structure, validate (heuristic AI), edit sections inline
+- Deck viewer: 9-slide auto-generated pitch decks with slide navigation
+- Pitch arena: pick idea + persona, live chat with per-turn scoring, mistake report on finish
+- Learning library: founder-focused topics by category
+- Settings page
+
+Heuristic deterministic AI lives in `artifacts/api-server/src/lib/pitchAi.ts` (no external LLM key required).
+Seed data (3 personas, 6 learning topics) loads on server start via `artifacts/api-server/src/lib/seed.ts`.
+
+## Brand
+
+- Primary: hsl(16 95% 55%) — vibrant orange "ignition"
+- Accent: hsl(250 80% 62%) — electric violet
+- Sidebar: deep ink (hsl 240 22% 8%)
+- Display font: Space Grotesk; body: Inter; mono: JetBrains Mono
+- No emojis in UI text. No Replit branding.
 
 ## Key Commands
 
@@ -22,6 +46,5 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- `pnpm --filter @workspace/api-server run dev` — run API server locally
 
 See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details.
