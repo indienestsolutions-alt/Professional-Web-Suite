@@ -27,7 +27,6 @@ import {
   summarizeSession,
   transcribeAudio,
   generateInvestorAudio,
-  MAX_SESSION_TURNS,
 } from "../lib/pitchAi";
 
 const router: IRouter = Router();
@@ -214,6 +213,32 @@ router.get("/sessions/:id", async (req: Request, res: Response): Promise<void> =
   res.json(GetSessionResponse.parse(detail));
 });
 
+router.delete("/sessions/:id", async (req: Request, res: Response): Promise<void> => {
+  const params = GetSessionParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const userId = req.user!.id;
+  await db
+    .delete(sessionMessagesTable)
+    .where(eq(sessionMessagesTable.sessionId, params.data.id));
+  const deleted = await db
+    .delete(pitchSessionsTable)
+    .where(
+      and(
+        eq(pitchSessionsTable.id, params.data.id),
+        eq(pitchSessionsTable.userId, userId),
+      ),
+    )
+    .returning({ id: pitchSessionsTable.id });
+  if (deleted.length === 0) {
+    res.status(404).json({ error: "Session not found" });
+    return;
+  }
+  res.json({ success: true });
+});
+
 router.post("/sessions/:id/messages", async (req: Request, res: Response): Promise<void> => {
   const params = SendSessionMessageParams.safeParse(req.params);
   if (!params.success) {
@@ -266,61 +291,39 @@ router.post("/sessions/:id/messages", async (req: Request, res: Response): Promi
     fillerWords: score.fillerWords,
   });
 
-  const userTurnRows = await db
-    .select({ id: sessionMessagesTable.id })
+  const allMessages = await db
+    .select()
     .from(sessionMessagesTable)
-    .where(
-      and(
-        eq(sessionMessagesTable.sessionId, session.id),
-        eq(sessionMessagesTable.role, "user"),
-      ),
-    );
-  const userTurnCount = userTurnRows.length;
-  const autoFinish = userTurnCount >= MAX_SESSION_TURNS;
+    .where(eq(sessionMessagesTable.sessionId, session.id))
+    .orderBy(asc(sessionMessagesTable.createdAt));
 
-  let investorReply = "";
-  let investorAudioB64 = "";
+  const [idea] = await db.select().from(ideasTable).where(eq(ideasTable.id, session.ideaId));
 
-  if (!autoFinish) {
-    const allMessages = await db
-      .select()
-      .from(sessionMessagesTable)
-      .where(eq(sessionMessagesTable.sessionId, session.id))
-      .orderBy(asc(sessionMessagesTable.createdAt));
+  const conversationHistory = allMessages
+    .filter((m) => m.role === "user" || m.role === "investor")
+    .map((m) => ({ role: m.role as "user" | "investor", content: m.content }));
 
-    const [idea] = await db.select().from(ideasTable).where(eq(ideasTable.id, session.ideaId));
+  const investorReply = await pickAIInvestorQuestion(
+    session.personaSlug,
+    idea,
+    conversationHistory,
+    body.data.language,
+  );
 
-    const conversationHistory = allMessages
-      .filter((m) => m.role === "user" || m.role === "investor")
-      .map((m) => ({ role: m.role as "user" | "investor", content: m.content }));
+  await db.insert(sessionMessagesTable).values({
+    sessionId: session.id,
+    role: "investor",
+    content: investorReply,
+  });
 
-    investorReply = await pickAIInvestorQuestion(
-      session.personaSlug,
-      idea,
-      conversationHistory,
-      body.data.language,
-    );
-
-    await db.insert(sessionMessagesTable).values({
-      sessionId: session.id,
-      role: "investor",
-      content: investorReply,
-    });
-
-    const audioBuffer = await generateInvestorAudio(investorReply, body.data.language).catch(() => null);
-    if (audioBuffer) investorAudioB64 = audioBuffer.toString("base64");
-  } else {
-    investorReply = "That was your last question. Great work — let me show you how you did.";
-    const audioBuffer = await generateInvestorAudio(investorReply).catch(() => null);
-    if (audioBuffer) investorAudioB64 = audioBuffer.toString("base64");
-    await finishSessionById(session.id);
-  }
+  const audioBuffer = await generateInvestorAudio(investorReply, body.data.language).catch(() => null);
+  const investorAudioB64 = audioBuffer ? audioBuffer.toString("base64") : "";
 
   const detail = await loadSessionDetail(session.id, userId);
   res.json({
     ...detail!,
     investorAudio: investorAudioB64,
-    autoFinished: autoFinish,
+    autoFinished: false,
   });
 });
 
@@ -385,62 +388,40 @@ router.post("/sessions/:id/voice-messages", async (req: Request, res: Response):
     fillerWords: score.fillerWords,
   });
 
-  const userTurnRows = await db
-    .select({ id: sessionMessagesTable.id })
+  const allMessages = await db
+    .select()
     .from(sessionMessagesTable)
-    .where(
-      and(
-        eq(sessionMessagesTable.sessionId, session.id),
-        eq(sessionMessagesTable.role, "user"),
-      ),
-    );
-  const userTurnCount = userTurnRows.length;
-  const autoFinish = userTurnCount >= MAX_SESSION_TURNS;
+    .where(eq(sessionMessagesTable.sessionId, session.id))
+    .orderBy(asc(sessionMessagesTable.createdAt));
 
-  let investorReply: string;
-  let investorAudioB64 = "";
+  const [idea] = await db.select().from(ideasTable).where(eq(ideasTable.id, session.ideaId));
 
-  if (!autoFinish) {
-    const allMessages = await db
-      .select()
-      .from(sessionMessagesTable)
-      .where(eq(sessionMessagesTable.sessionId, session.id))
-      .orderBy(asc(sessionMessagesTable.createdAt));
+  const conversationHistory = allMessages
+    .filter((m) => m.role === "user" || m.role === "investor")
+    .map((m) => ({ role: m.role as "user" | "investor", content: m.content }));
 
-    const [idea] = await db.select().from(ideasTable).where(eq(ideasTable.id, session.ideaId));
+  const investorReply = await pickAIInvestorQuestion(
+    session.personaSlug,
+    idea,
+    conversationHistory,
+    body.data.language,
+  );
 
-    const conversationHistory = allMessages
-      .filter((m) => m.role === "user" || m.role === "investor")
-      .map((m) => ({ role: m.role as "user" | "investor", content: m.content }));
+  await db.insert(sessionMessagesTable).values({
+    sessionId: session.id,
+    role: "investor",
+    content: investorReply,
+  });
 
-    investorReply = await pickAIInvestorQuestion(
-      session.personaSlug,
-      idea,
-      conversationHistory,
-      body.data.language,
-    );
-
-    await db.insert(sessionMessagesTable).values({
-      sessionId: session.id,
-      role: "investor",
-      content: investorReply,
-    });
-
-    const ab = await generateInvestorAudio(investorReply, body.data.language).catch(() => null);
-    if (ab) investorAudioB64 = ab.toString("base64");
-  } else {
-    investorReply = "That was your last question. Great work — let me show you how you did.";
-    const ab = await generateInvestorAudio(investorReply).catch(() => null);
-    if (ab) investorAudioB64 = ab.toString("base64");
-    await finishSessionById(session.id);
-  }
+  const ab = await generateInvestorAudio(investorReply, body.data.language).catch(() => null);
+  const investorAudioB64 = ab ? ab.toString("base64") : "";
 
   const detail = await loadSessionDetail(session.id, userId);
   res.json({
     ...detail!,
     transcript,
     investorAudio: investorAudioB64,
-    autoFinished: autoFinish,
+    autoFinished: false,
   });
 });
 

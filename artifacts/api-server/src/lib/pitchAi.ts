@@ -3,7 +3,7 @@ import { openai } from "@workspace/integrations-openai-ai-server";
 import {
   speechToText,
   textToSpeech,
-  ensureCompatibleFormat,
+  detectAudioFormat,
 } from "@workspace/integrations-openai-ai-server/audio";
 
 export interface StructuredIdea {
@@ -582,8 +582,11 @@ export function summarizeSession(
 
 export async function transcribeAudio(audioBuffer: Buffer): Promise<string> {
   try {
-    const { buffer, format } = await ensureCompatibleFormat(audioBuffer);
-    return await speechToText(buffer, format);
+    const detected = detectAudioFormat(audioBuffer);
+    const format = (detected === "mp3" || detected === "wav" || detected === "webm")
+      ? detected
+      : "webm";
+    return await speechToText(audioBuffer, format);
   } catch (err) {
     console.error("STT failed:", err);
     return "";
@@ -598,5 +601,3 @@ export async function generateInvestorAudio(text: string, _language?: string): P
     return null;
   }
 }
-
-export const MAX_SESSION_TURNS = 7;
