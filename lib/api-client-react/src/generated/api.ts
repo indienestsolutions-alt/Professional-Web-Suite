@@ -37,6 +37,8 @@ import type {
   PitchSessionDetail,
   ProgressPoint,
   SendSessionMessageInput,
+  SendSessionVoiceMessageInput,
+  SessionVoiceMessageResponse,
   StartSessionInput,
   SuccessResponse,
   UpdateIdeaInput,
@@ -1917,6 +1919,97 @@ export const useFinishSession = <
   TContext
 > => {
   return useMutation(getFinishSessionMutationOptions(options));
+};
+
+/**
+ * @summary Send audio pitch turn; returns transcript, feedback, and audio investor response
+ */
+export const getSendSessionVoiceMessageUrl = (id: string) => {
+  return `/api/sessions/${id}/voice-messages`;
+};
+
+export const sendSessionVoiceMessage = async (
+  id: string,
+  sendSessionVoiceMessageInput: SendSessionVoiceMessageInput,
+  options?: RequestInit,
+): Promise<SessionVoiceMessageResponse> => {
+  return customFetch<SessionVoiceMessageResponse>(
+    getSendSessionVoiceMessageUrl(id),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(sendSessionVoiceMessageInput),
+    },
+  );
+};
+
+export const getSendSessionVoiceMessageMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof sendSessionVoiceMessage>>,
+    TError,
+    { id: string; data: BodyType<SendSessionVoiceMessageInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof sendSessionVoiceMessage>>,
+  TError,
+  { id: string; data: BodyType<SendSessionVoiceMessageInput> },
+  TContext
+> => {
+  const mutationKey = ["sendSessionVoiceMessage"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof sendSessionVoiceMessage>>,
+    { id: string; data: BodyType<SendSessionVoiceMessageInput> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return sendSessionVoiceMessage(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SendSessionVoiceMessageMutationResult = NonNullable<
+  Awaited<ReturnType<typeof sendSessionVoiceMessage>>
+>;
+export type SendSessionVoiceMessageMutationBody =
+  BodyType<SendSessionVoiceMessageInput>;
+export type SendSessionVoiceMessageMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Send audio pitch turn; returns transcript, feedback, and audio investor response
+ */
+export const useSendSessionVoiceMessage = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof sendSessionVoiceMessage>>,
+    TError,
+    { id: string; data: BodyType<SendSessionVoiceMessageInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof sendSessionVoiceMessage>>,
+  TError,
+  { id: string; data: BodyType<SendSessionVoiceMessageInput> },
+  TContext
+> => {
+  return useMutation(getSendSessionVoiceMessageMutationOptions(options));
 };
 
 /**

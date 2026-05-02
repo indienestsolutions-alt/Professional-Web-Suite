@@ -252,7 +252,25 @@ export type PitchSessionDetail = PitchSession & {
 export interface SendSessionMessageInput {
   /** @minLength 1 */
   content: string;
+  /** BCP-47 language code hint (e.g. 'en', 'es', 'fr', 'hi') */
+  language?: string;
 }
+
+export interface SendSessionVoiceMessageInput {
+  /** Base64-encoded WebM/WAV audio recording */
+  audio: string;
+  /** BCP-47 language code hint */
+  language?: string;
+}
+
+export type SessionVoiceMessageResponse = PitchSessionDetail & {
+  /** Transcription of the user audio */
+  transcript: string;
+  /** Base64-encoded MP3 TTS of investor reply */
+  investorAudio: string;
+  /** Whether the session was auto-finished after max turns */
+  autoFinished: boolean;
+};
 
 export interface LearningTopic {
   id: string;

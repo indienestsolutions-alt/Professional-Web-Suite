@@ -9,4 +9,6 @@
 export interface SendSessionMessageInput {
   /** @minLength 1 */
   content: string;
+  /** BCP-47 language code hint (e.g. 'en', 'es', 'fr', 'hi') */
+  language?: string;
 }

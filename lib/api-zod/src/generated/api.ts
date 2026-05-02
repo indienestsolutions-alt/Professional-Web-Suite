@@ -455,6 +455,10 @@ export const SendSessionMessageParams = zod.object({
 
 export const SendSessionMessageBody = zod.object({
   content: zod.string().min(1),
+  language: zod
+    .string()
+    .optional()
+    .describe("BCP-47 language code hint (e.g. 'en', 'es', 'fr', 'hi')"),
 });
 
 export const SendSessionMessageResponse = zod
@@ -549,6 +553,73 @@ export const FinishSessionResponse = zod
           }),
         )
         .optional(),
+    }),
+  );
+
+/**
+ * @summary Send audio pitch turn; returns transcript, feedback, and audio investor response
+ */
+export const SendSessionVoiceMessageParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const SendSessionVoiceMessageBody = zod.object({
+  audio: zod.string().describe("Base64-encoded WebM\/WAV audio recording"),
+  language: zod.string().optional().describe("BCP-47 language code hint"),
+});
+
+export const SendSessionVoiceMessageResponse = zod
+  .object({
+    id: zod.string(),
+    userId: zod.string(),
+    ideaId: zod.string(),
+    ideaTitle: zod.string().nullish(),
+    personaSlug: zod.string(),
+    personaName: zod.string().nullish(),
+    status: zod.enum(["active", "finished"]),
+    overallScore: zod.number().nullish(),
+    confidenceScore: zod.number().nullish(),
+    clarityScore: zod.number().nullish(),
+    investorReadiness: zod.number().nullish(),
+    summary: zod.string().nullish(),
+    createdAt: zod.coerce.date(),
+    finishedAt: zod.coerce.date().nullish(),
+  })
+  .and(
+    zod.object({
+      messages: zod.array(
+        zod.object({
+          id: zod.string(),
+          role: zod.enum(["user", "investor", "system"]),
+          content: zod.string(),
+          feedback: zod.string().nullish(),
+          confidence: zod.number().nullish(),
+          clarity: zod.number().nullish(),
+          fillerWords: zod.number().nullish(),
+          createdAt: zod.coerce.date(),
+        }),
+      ),
+      mistakes: zod
+        .array(
+          zod.object({
+            title: zod.string(),
+            description: zod.string(),
+            suggestion: zod.string().optional(),
+            severity: zod.enum(["low", "medium", "high"]),
+          }),
+        )
+        .optional(),
+    }),
+  )
+  .and(
+    zod.object({
+      transcript: zod.string().describe("Transcription of the user audio"),
+      investorAudio: zod
+        .string()
+        .describe("Base64-encoded MP3 TTS of investor reply"),
+      autoFinished: zod
+        .boolean()
+        .describe("Whether the session was auto-finished after max turns"),
     }),
   );
 

@@ -401,6 +401,27 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/PitchSessionDetail' }
+  /sessions/{id}/voice-messages:
+    post:
+      tags: [Sessions]
+      operationId: sendSessionVoiceMessage
+      summary: Send audio pitch turn; returns transcript, feedback, and audio investor response
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SendSessionVoiceMessageInput' }
+      responses:
+        '200':
+          description: Session updated with transcription and audio investor reply
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SessionVoiceMessageResponse' }
 
   /learning:
     get:
@@ -709,6 +730,34 @@ components:
         content:
           type: string
           minLength: 1
+        language:
+          type: string
+          description: BCP-47 language code hint (e.g. 'en', 'es', 'fr', 'hi')
+    SendSessionVoiceMessageInput:
+      type: object
+      required: [audio]
+      properties:
+        audio:
+          type: string
+          description: Base64-encoded WebM/WAV audio recording
+        language:
+          type: string
+          description: BCP-47 language code hint
+    SessionVoiceMessageResponse:
+      allOf:
+        - $ref: '#/components/schemas/PitchSessionDetail'
+        - type: object
+          required: [transcript, investorAudio, autoFinished]
+          properties:
+            transcript:
+              type: string
+              description: Transcription of the user audio
+            investorAudio:
+              type: string
+              description: Base64-encoded MP3 TTS of investor reply
+            autoFinished:
+              type: boolean
+              description: Whether the session was auto-finished after max turns
 
     LearningTopic:
       type: object

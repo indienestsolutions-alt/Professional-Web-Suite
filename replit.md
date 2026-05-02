@@ -24,12 +24,22 @@ pnpm workspace monorepo for **PitchMind AI** — a pitch coaching platform for s
 - Auth-gated app with public landing + login (Replit Auth)
 - Dashboard: stats, progress chart, recent activity, quick actions
 - Ideas: list, create, AI-structure, validate (heuristic AI), edit sections inline
-- Deck viewer: 9-slide auto-generated pitch decks with slide navigation
+- Deck viewer: 9-slide auto-generated pitch decks, slide navigation, fullscreen mode, HTML download
 - Pitch arena: pick idea + persona, live chat with per-turn scoring, mistake report on finish
+  - AI investor questions: OpenAI gpt-4.1-powered, context-aware, no repeats, idea-specific
+  - Voice AI: record → STT transcribe → send pitch → TTS investor response (audio playback)
+  - Language switching: 10 languages supported (en/es/fr/de/hi/zh/ar/pt/ja/ko)
+  - Auto-end after MAX_SESSION_TURNS (5) turns with full report
+  - Full questions list panel (live during session + complete list in report)
 - Learning library: founder-focused topics by category
 - Settings page
 
-Heuristic deterministic AI lives in `artifacts/api-server/src/lib/pitchAi.ts` (no external LLM key required).
+AI layer: `artifacts/api-server/src/lib/pitchAi.ts`
+- OpenAI gpt-4.1 for investor question generation (context-aware, language-aware)
+- OpenAI gpt-4o-mini-transcribe for STT
+- OpenAI gpt-4o-mini-tts for investor TTS voice
+- Heuristic scoring fallback (no LLM required) for turn scoring
+
 Seed data (3 personas, 6 learning topics) loads on server start via `artifacts/api-server/src/lib/seed.ts`.
 
 ## Brand
