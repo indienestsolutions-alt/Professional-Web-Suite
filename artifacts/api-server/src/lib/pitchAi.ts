@@ -323,6 +323,7 @@ export async function pickAIInvestorQuestion(
   idea: Idea,
   conversationHistory: Array<{ role: "user" | "investor"; content: string }>,
   language?: string,
+  ownDeckContent?: string,
 ): Promise<string> {
   const systemPrompt = PERSONA_SYSTEM_PROMPTS[personaSlug] ?? PERSONA_SYSTEM_PROMPTS["curious-angel"]!;
 
@@ -335,6 +336,7 @@ export async function pickAIInvestorQuestion(
     idea.businessModel ? `How they make money: ${idea.businessModel}` : null,
     idea.competitiveEdge ? `Why they win: ${idea.competitiveEdge}` : null,
     idea.targetAudience ? `Who they sell to: ${idea.targetAudience}` : null,
+    ownDeckContent ? `\nFOUNDER'S OWN PITCH DECK CONTENT:\n${ownDeckContent.slice(0, 1200)}` : null,
   ].filter(Boolean).join("\n");
 
   const previousQuestions = conversationHistory

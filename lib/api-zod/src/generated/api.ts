@@ -379,6 +379,7 @@ export const ListSessionsResponse = zod.array(ListSessionsResponseItem);
 export const StartSessionBody = zod.object({
   ideaId: zod.string(),
   personaSlug: zod.string(),
+  ownDeckContent: zod.string().optional(),
 });
 
 export const StartSessionResponse = zod.object({

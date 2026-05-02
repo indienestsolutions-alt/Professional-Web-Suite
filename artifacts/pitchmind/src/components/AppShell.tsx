@@ -4,7 +4,6 @@ import { useAuth } from "@workspace/replit-auth-web";
 import {
   LayoutDashboard,
   Lightbulb,
-  Presentation,
   Mic,
   GraduationCap,
   Settings,
@@ -45,7 +44,7 @@ const NAV: NavItem[] = [
   },
   {
     href: "/train",
-    label: "Pitch arena",
+    label: "Arena",
     icon: Mic,
     match: (p) => p === "/train" || p.startsWith("/train/"),
   },
@@ -63,17 +62,13 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen flex bg-background text-foreground">
+      {/* ── Desktop sidebar ── */}
       <aside className="hidden md:flex w-64 shrink-0 flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border">
         <div className="px-6 py-6">
           <Link href="/dashboard">
             <a className="inline-flex items-center gap-2">
               <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-sidebar-foreground text-sidebar">
-                <svg
-                  viewBox="0 0 32 32"
-                  fill="none"
-                  width="18"
-                  height="18"
-                >
+                <svg viewBox="0 0 32 32" fill="none" width="18" height="18">
                   <path
                     d="M6 24 L6 8 L14 8 C18.4183 8 22 11.5817 22 16 L22 16 C22 18.0 20.5 19.5 18.5 19.5 L13 19.5 L13 24"
                     stroke="currentColor"
@@ -164,14 +159,41 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
+      {/* ── Main content area ── */}
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="md:hidden flex items-center justify-between px-4 py-3 border-b border-border bg-card">
+        {/* Mobile top header */}
+        <header className="md:hidden flex items-center justify-between px-4 py-3 border-b border-border bg-card shrink-0">
           <Wordmark />
           <Button variant="ghost" size="icon" onClick={() => logout()}>
             <LogOut className="h-4 w-4" />
           </Button>
         </header>
-        <main className="flex-1 min-w-0">{children}</main>
+
+        <main className="flex-1 min-w-0 overflow-x-hidden">
+          {children}
+        </main>
+
+        {/* ── Mobile bottom nav ── */}
+        <nav className="md:hidden shrink-0 flex items-stretch border-t border-border bg-card safe-bottom">
+          {NAV.map((item) => {
+            const active = item.match(location);
+            const Icon = item.icon;
+            return (
+              <Link key={item.href} href={item.href}>
+                <a
+                  className={`flex-1 flex flex-col items-center justify-center gap-1 py-2.5 px-1 text-[10px] font-mono uppercase tracking-wider transition-colors min-w-0 ${
+                    active
+                      ? "text-primary"
+                      : "text-muted-foreground"
+                  }`}
+                >
+                  <Icon className={`h-5 w-5 ${active ? "text-primary" : ""}`} />
+                  <span className="truncate">{item.label}</span>
+                </a>
+              </Link>
+            );
+          })}
+        </nav>
       </div>
     </div>
   );
@@ -189,30 +211,34 @@ export function PageHeader({
   actions?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-8">
+    <div className="flex flex-col gap-4 mb-6 md:mb-8">
       <div className="space-y-2 max-w-3xl">
         {eyebrow && (
           <div className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.16em] text-muted-foreground font-mono">
             {eyebrow}
           </div>
         )}
-        <h1 className="text-3xl md:text-4xl font-semibold tracking-tight pm-text-balance">
+        <h1 className="text-2xl md:text-4xl font-semibold tracking-tight pm-text-balance">
           {title}
         </h1>
         {description && (
-          <p className="text-muted-foreground text-base md:text-lg pm-text-balance">
+          <p className="text-muted-foreground text-sm md:text-lg pm-text-balance">
             {description}
           </p>
         )}
       </div>
-      {actions && <div className="flex items-center gap-2 flex-wrap">{actions}</div>}
+      {actions && (
+        <div className="flex items-center gap-2 flex-wrap">
+          {actions}
+        </div>
+      )}
     </div>
   );
 }
 
 export function PageContainer({ children }: { children: ReactNode }) {
   return (
-    <div className="px-4 md:px-8 lg:px-12 py-8 md:py-10 max-w-7xl mx-auto">
+    <div className="px-3 md:px-8 lg:px-12 py-6 md:py-10 max-w-7xl mx-auto w-full overflow-x-hidden">
       {children}
     </div>
   );
