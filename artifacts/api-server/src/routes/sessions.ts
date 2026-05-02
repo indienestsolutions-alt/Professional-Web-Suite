@@ -15,7 +15,6 @@ import {
   GetSessionResponse,
   SendSessionMessageParams,
   SendSessionMessageBody,
-  SendSessionMessageResponse,
   FinishSessionParams,
   FinishSessionResponse,
   SendSessionVoiceMessageParams,
@@ -24,7 +23,7 @@ import {
 import { requireAuth } from "../lib/requireAuth";
 import {
   pickAIInvestorQuestion,
-  scorePitchTurn,
+  scoreAndCoachTurn,
   summarizeSession,
   transcribeAudio,
   generateInvestorAudio,
@@ -109,7 +108,7 @@ async function finishSessionById(sessionId: string): Promise<void> {
   await db.insert(sessionMessagesTable).values({
     sessionId,
     role: "system",
-    content: `Session complete. Overall score: ${summary.overallScore}. ${summary.summary}`,
+    content: `Session done. Overall score: ${summary.overallScore}. ${summary.summary}`,
   });
 }
 
@@ -174,21 +173,30 @@ router.post("/sessions", async (req: Request, res: Response): Promise<void> => {
     })
     .returning();
 
+  const openingQuestion = await pickAIInvestorQuestion(
+    persona.slug,
+    idea,
+    [],
+  );
+
   await db.insert(sessionMessagesTable).values([
     {
       sessionId: session.id,
       role: "system",
-      content: `${persona.name} has joined the room. Style: ${persona.style}. Take a breath. Open with the strongest version of your pitch.`,
+      content: `You're now talking to ${persona.name}. Take a breath, then explain your idea in your own words.`,
     },
     {
       sessionId: session.id,
       role: "investor",
-      content: `Alright. Pitch me ${idea.title}. You have one minute. Make it count.`,
+      content: openingQuestion,
     },
   ]);
 
+  const openingAudioBuffer = await generateInvestorAudio(openingQuestion).catch(() => null);
+  const openingAudio = openingAudioBuffer ? openingAudioBuffer.toString("base64") : "";
+
   const detail = await loadSessionDetail(session.id, userId);
-  res.json(StartSessionResponse.parse({ ...detail! }));
+  res.json({ ...StartSessionResponse.parse({ ...detail! }), openingAudio });
 });
 
 router.get("/sessions/:id", async (req: Request, res: Response): Promise<void> => {
@@ -236,7 +244,17 @@ router.post("/sessions/:id/messages", async (req: Request, res: Response): Promi
     return;
   }
 
-  const score = scorePitchTurn(body.data.content);
+  const prevMessages = await db
+    .select()
+    .from(sessionMessagesTable)
+    .where(eq(sessionMessagesTable.sessionId, session.id))
+    .orderBy(asc(sessionMessagesTable.createdAt));
+
+  const lastInvestorQuestion = prevMessages
+    .filter((m) => m.role === "investor")
+    .at(-1)?.content;
+
+  const score = await scoreAndCoachTurn(body.data.content, lastInvestorQuestion);
 
   await db.insert(sessionMessagesTable).values({
     sessionId: session.id,
@@ -258,8 +276,10 @@ router.post("/sessions/:id/messages", async (req: Request, res: Response): Promi
       ),
     );
   const userTurnCount = userTurnRows.length;
-
   const autoFinish = userTurnCount >= MAX_SESSION_TURNS;
+
+  let investorReply = "";
+  let investorAudioB64 = "";
 
   if (!autoFinish) {
     const allMessages = await db
@@ -274,7 +294,7 @@ router.post("/sessions/:id/messages", async (req: Request, res: Response): Promi
       .filter((m) => m.role === "user" || m.role === "investor")
       .map((m) => ({ role: m.role as "user" | "investor", content: m.content }));
 
-    const investorReply = await pickAIInvestorQuestion(
+    investorReply = await pickAIInvestorQuestion(
       session.personaSlug,
       idea,
       conversationHistory,
@@ -286,12 +306,22 @@ router.post("/sessions/:id/messages", async (req: Request, res: Response): Promi
       role: "investor",
       content: investorReply,
     });
+
+    const audioBuffer = await generateInvestorAudio(investorReply, body.data.language).catch(() => null);
+    if (audioBuffer) investorAudioB64 = audioBuffer.toString("base64");
   } else {
+    investorReply = "That was your last question. Great work — let me show you how you did.";
+    const audioBuffer = await generateInvestorAudio(investorReply).catch(() => null);
+    if (audioBuffer) investorAudioB64 = audioBuffer.toString("base64");
     await finishSessionById(session.id);
   }
 
   const detail = await loadSessionDetail(session.id, userId);
-  res.json(SendSessionMessageResponse.parse(detail!));
+  res.json({
+    ...detail!,
+    investorAudio: investorAudioB64,
+    autoFinished: autoFinish,
+  });
 });
 
 router.post("/sessions/:id/voice-messages", async (req: Request, res: Response): Promise<void> => {
@@ -329,11 +359,21 @@ router.post("/sessions/:id/voice-messages", async (req: Request, res: Response):
   const transcript = await transcribeAudio(audioBuffer);
 
   if (!transcript || transcript.trim().length === 0) {
-    res.status(400).json({ error: "Could not transcribe audio. Please speak clearly and try again." });
+    res.status(400).json({ error: "Could not hear you clearly. Please try again and speak into your microphone." });
     return;
   }
 
-  const score = scorePitchTurn(transcript);
+  const prevMessages = await db
+    .select()
+    .from(sessionMessagesTable)
+    .where(eq(sessionMessagesTable.sessionId, session.id))
+    .orderBy(asc(sessionMessagesTable.createdAt));
+
+  const lastInvestorQuestion = prevMessages
+    .filter((m) => m.role === "investor")
+    .at(-1)?.content;
+
+  const score = await scoreAndCoachTurn(transcript, lastInvestorQuestion);
 
   await db.insert(sessionMessagesTable).values({
     sessionId: session.id,
@@ -386,14 +426,12 @@ router.post("/sessions/:id/voice-messages", async (req: Request, res: Response):
       content: investorReply,
     });
 
-    const audioBuffer = await generateInvestorAudio(investorReply, body.data.language);
-    if (audioBuffer) {
-      investorAudioB64 = audioBuffer.toString("base64");
-    }
+    const ab = await generateInvestorAudio(investorReply, body.data.language).catch(() => null);
+    if (ab) investorAudioB64 = ab.toString("base64");
   } else {
-    investorReply = "That was your final question. Well done — let's see how you performed.";
-    const audioBuffer = await generateInvestorAudio(investorReply);
-    if (audioBuffer) investorAudioB64 = audioBuffer.toString("base64");
+    investorReply = "That was your last question. Great work — let me show you how you did.";
+    const ab = await generateInvestorAudio(investorReply).catch(() => null);
+    if (ab) investorAudioB64 = ab.toString("base64");
     await finishSessionById(session.id);
   }
 

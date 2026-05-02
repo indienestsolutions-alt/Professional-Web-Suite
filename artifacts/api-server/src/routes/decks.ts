@@ -10,7 +10,7 @@ import {
   ListDecksForIdeaResponse,
 } from "@workspace/api-zod";
 import { requireAuth } from "../lib/requireAuth";
-import { generateDeckSlides } from "../lib/pitchAi";
+import { generateAIDeckSlides } from "../lib/pitchAi";
 
 const router: IRouter = Router();
 
@@ -60,7 +60,7 @@ router.post(
       return;
     }
 
-    const { title, storyline, slides } = generateDeckSlides(idea);
+    const { title, storyline, slides } = await generateAIDeckSlides(idea);
 
     const [deck] = await db
       .insert(pitchDecksTable)

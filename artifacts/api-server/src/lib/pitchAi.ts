@@ -80,11 +80,11 @@ export function structureIdeaText(title: string, rawText: string): StructuredIde
   const k = keywords.length > 0 ? keywords.join(", ") : title.toLowerCase();
   const audience = pickAudience(rawText);
 
-  const problem = `Today, ${audience} struggle with the gap that "${title}" addresses. ${lead} The current options force people to stitch together generic tools, which is slow, frustrating, and produces inconsistent results.`;
-  const solution = `${title} is a focused, opinionated platform that turns scattered effort into a clear workflow. It blends ${k} into a single experience so users can move from intent to outcome in minutes instead of weeks, with intelligent defaults that get out of the way.`;
-  const market = `The opportunity sits at the intersection of ${k}. Even a conservative slice of ${audience} represents a meaningful initial wedge, with room to expand into adjacent segments as the product matures.`;
-  const businessModel = `Freemium core with paid upgrades for power users and teams. Free tier covers everyday use and drives organic adoption; paid tiers unlock advanced workflows, collaboration, and priority support. Long term: school and organization plans, plus partnerships with incubators and ecosystem players.`;
-  const competitiveEdge = `Unlike generic tools that handle one slice of the journey, ${title} owns the full loop end to end. The result is a sharper experience, faster results, and a defensible moat built from compounding workflow data and feedback.`;
+  const problem = `Today, ${audience} struggle with what "${title}" solves. ${lead} The tools that exist right now are slow, disconnected, and built for someone else — not for the people who actually need it.`;
+  const solution = `${title} is a simple, focused tool that handles the whole job in one place. It brings together ${k} so people can get from start to done in minutes, not weeks — with smart defaults that just work.`;
+  const market = `The opportunity is at the crossing point of ${k}. Even a small slice of ${audience} is a real starting point, with room to grow into nearby areas as the product gets better.`;
+  const businessModel = `Free to start, paid for more. The free plan gets people in the door. Paid plans unlock advanced features and team tools. Long term: school and organization plans, plus partnerships with accelerators and ecosystems.`;
+  const competitiveEdge = `Most tools only handle one piece of the job. ${title} owns the whole flow end to end. That means a better experience, faster results, and a moat that grows as more people use it.`;
 
   return { problem, solution, market, businessModel, competitiveEdge, targetAudience: audience };
 }
@@ -105,31 +105,31 @@ export function validateIdea(idea: Idea): IdeaValidationResult {
   const suggestions: string[] = [];
 
   if (completeness >= 0.8) {
-    strengths.push("Idea is well structured across the core founder canvas.");
+    strengths.push("Your idea covers all the key sections an investor looks for.");
   } else {
-    weaknesses.push("Several core sections are missing or thin (problem, solution, market, business model, edge, audience).");
-    suggestions.push("Run the AI structuring step, then sharpen each section with one concrete example or number.");
+    weaknesses.push("A few key sections are missing or too short — problem, solution, market, business model, edge, audience.");
+    suggestions.push("Use the AI structuring step, then add one real example or number to each section.");
   }
 
   if (richness >= 0.6) {
-    strengths.push("The raw description gives the AI enough context to reason about details.");
+    strengths.push("You gave enough detail for the AI to work with. That's a good sign.");
   } else {
-    weaknesses.push("Raw idea description is short — investors will need more context to grade you.");
-    suggestions.push("Expand the raw idea: who is the user, what is the moment of pain, and why now.");
+    weaknesses.push("Your idea description is short — investors need more context to understand it.");
+    suggestions.push("Expand your raw idea: who is the user, what is the exact pain, and why does it matter now.");
   }
 
   if (idea.competitiveEdge && idea.competitiveEdge.length > 60) {
-    strengths.push("You have a stated competitive edge — investors test this hard.");
+    strengths.push("You clearly explained why you win — investors will test this hard.");
   } else {
-    weaknesses.push("Competitive edge is unclear or generic.");
-    suggestions.push("Name your unfair advantage in one sentence: a workflow, dataset, distribution, or insight only you have.");
+    weaknesses.push("Why you win isn't clear yet. That's often the first thing investors ask.");
+    suggestions.push("Write your unfair advantage in one sentence: what do you have that others don't?");
   }
 
   if (idea.businessModel && idea.businessModel.toLowerCase().includes("free")) {
-    suggestions.push("Quantify your freemium funnel: what % of free users convert, and to what ARPU.");
+    suggestions.push("Explain your free-to-paid numbers: how many free users convert, and how much do they pay?");
   }
 
-  if (strengths.length === 0) strengths.push("You showed up and put a real idea on the page — that's step one.");
+  if (strengths.length === 0) strengths.push("You wrote it down and shared it — that's the first real step.");
 
   return { score: Math.min(98, Math.max(35, score)), strengths, weaknesses, suggestions };
 }
@@ -140,72 +140,142 @@ export function generateDeckSlides(idea: Idea): {
   slides: DeckSlide[];
 } {
   const title = `${idea.title} — Pitch Deck`;
-  const storyline = `Open on the human problem, reveal the gap nobody is closing, show the solution as the inevitable answer, prove the market and business model, end on the ask.`;
+  const storyline = `Start with the real problem, show the gap no one is fixing, present your solution as the obvious answer, prove the market and business, end with the ask.`;
 
   const slides: DeckSlide[] = [
     {
       title: idea.title,
-      body: `Transforming ${idea.targetAudience ?? "the user's world"} with a focused, end-to-end experience.`,
+      body: `Helping ${idea.targetAudience ?? "people"} do more with less effort.`,
       layout: "title",
     },
     {
       title: "The Problem",
-      body: idea.problem ?? "Users today struggle with a workflow that nobody owns end to end.",
+      body: idea.problem ?? "People today struggle with a workflow that nobody owns from start to finish.",
       layout: "problem",
       bullets: [
-        "Pain is daily and unmistakable",
-        "Existing tools are partial and disconnected",
-        "Time and confidence are bleeding out of the process",
+        "The pain happens every day",
+        "Existing tools are patchy and disconnected",
+        "Time and money are wasted as a result",
       ],
     },
     {
       title: "Our Solution",
-      body: idea.solution ?? "A single product that owns the full journey, not just one step.",
+      body: idea.solution ?? "One product that handles the full job — not just one piece of it.",
       layout: "solution",
       bullets: [
-        "Intelligent defaults that get out of the way",
-        "Workflow that feels obvious once you've used it",
+        "Easy to start, powerful as you grow",
+        "Does in minutes what used to take hours",
         "Built for the people actually doing the work",
       ],
     },
     {
-      title: "Market",
-      body: idea.market ?? "An opportunity at the intersection of clear demand and underserved supply.",
+      title: "Who Buys This",
+      body: idea.market ?? "A clear group of people who need this and are ready to pay for it.",
       layout: "market",
-      bullets: ["TAM expanding", "Wedge audience identified", "Adjacent segments warm"],
+      bullets: ["Large and growing market", "Specific starting group identified", "Easy to expand from there"],
     },
     {
-      title: "Business Model",
-      body: idea.businessModel ?? "Freemium core, paid upgrades for advanced workflows, organization plans for distribution.",
+      title: "How We Make Money",
+      body: idea.businessModel ?? "Free plan to get people in, paid plan for power users, team plans for groups.",
       layout: "business",
-      bullets: ["Free tier drives adoption", "Paid tier monetizes power users", "Org plans drive land-and-expand"],
+      bullets: ["Free plan drives word-of-mouth", "Paid plan unlocks more features", "Team plans grow revenue fast"],
     },
     {
-      title: "Competitive Edge",
-      body: idea.competitiveEdge ?? "Unlike point tools, we own the full loop — and the data that compounds inside it.",
+      title: "Why We Win",
+      body: idea.competitiveEdge ?? "We own the whole experience — not just one step. That's hard to copy.",
       layout: "edge",
-      bullets: ["End-to-end ownership", "Compounding data moat", "Tighter feedback loop"],
+      bullets: ["Full end-to-end ownership", "Gets smarter with every user", "Hard to replicate quickly"],
     },
     {
-      title: "Demo",
-      body: "Live walkthrough of the core flow: from raw input to polished outcome in under three minutes.",
+      title: "See It In Action",
+      body: "Watch the core flow: from a raw idea to a finished result in under three minutes.",
       layout: "demo",
     },
     {
-      title: "Traction & Roadmap",
-      body: "Early signal: real users, real ideas, real pitches. Next: deeper personalization, team mode, and ecosystem partnerships.",
+      title: "Progress & Next Steps",
+      body: "Early users are active. Next: deeper features, team mode, and key partnerships.",
       layout: "traction",
-      bullets: ["Active builders this month", "Sessions per active user trending up", "Roadmap aligned to user-stated needs"],
+      bullets: ["Real users, real activity", "Usage growing week over week", "Roadmap built from user feedback"],
     },
     {
-      title: "The Ask",
-      body: "Join us in arming the next generation of founders with the tools to think, pitch, and defend their ideas like the pros.",
+      title: "What We're Asking For",
+      body: "Join us in giving the next generation of founders the tools to think, pitch, and win.",
       layout: "ask",
-      bullets: ["Strategic partners", "Pilot schools and incubators", "Seed capital to expand the product surface"],
+      bullets: ["Strategic partners", "Pilot schools and accelerators", "Seed funding to grow the product"],
     },
   ];
 
   return { title, storyline, slides };
+}
+
+export async function generateAIDeckSlides(idea: Idea): Promise<{
+  title: string;
+  storyline: string;
+  slides: DeckSlide[];
+}> {
+  const ideaContext = [
+    `Startup Name: ${idea.title}`,
+    idea.rawText ? `Full Description: ${idea.rawText}` : null,
+    idea.problem ? `The Problem: ${idea.problem}` : null,
+    idea.solution ? `The Solution: ${idea.solution}` : null,
+    idea.market ? `Market Opportunity: ${idea.market}` : null,
+    idea.businessModel ? `Business Model: ${idea.businessModel}` : null,
+    idea.competitiveEdge ? `Why We Win: ${idea.competitiveEdge}` : null,
+    idea.targetAudience ? `Who It's For: ${idea.targetAudience}` : null,
+  ].filter(Boolean).join("\n");
+
+  const systemPrompt = `You write pitch deck slides. Use simple, clear English that anyone can understand — no jargon. Short sentences. Sound real and human, not corporate. Be specific to this startup — no generic filler.`;
+
+  const userPrompt = `Write a 9-slide pitch deck for this startup:
+
+${ideaContext}
+
+Return a JSON object with this exact shape:
+{
+  "slides": [
+    { "layout": "title", "title": "...", "body": "..." },
+    { "layout": "problem", "title": "...", "body": "...", "bullets": ["...", "...", "..."] },
+    { "layout": "solution", "title": "...", "body": "...", "bullets": ["...", "...", "..."] },
+    { "layout": "market", "title": "...", "body": "...", "bullets": ["...", "...", "..."] },
+    { "layout": "business", "title": "...", "body": "...", "bullets": ["...", "...", "..."] },
+    { "layout": "edge", "title": "...", "body": "...", "bullets": ["...", "...", "..."] },
+    { "layout": "demo", "title": "...", "body": "..." },
+    { "layout": "traction", "title": "...", "body": "...", "bullets": ["...", "...", "..."] },
+    { "layout": "ask", "title": "...", "body": "...", "bullets": ["...", "...", "..."] }
+  ]
+}
+
+Rules:
+- Title slide: no bullets, body is 1 short sentence (what the startup does, in plain English)
+- All other slides: body is 2-3 short sentences, bullets are 3 short phrases (5-8 words each)
+- Use simple everyday English — no buzzwords, no jargon
+- Be specific to THIS startup using its actual description
+- Slide titles: 4-6 words max`;
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      max_completion_tokens: 2000,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+    });
+
+    const raw = response.choices[0]?.message?.content ?? "{}";
+    const parsed = JSON.parse(raw) as { slides?: DeckSlide[] };
+
+    if (parsed.slides && Array.isArray(parsed.slides) && parsed.slides.length >= 8) {
+      const title = `${idea.title} — Pitch Deck`;
+      const storyline = `A clear story: the real problem, the simple solution, why it works, and why now.`;
+      return { title, storyline, slides: parsed.slides };
+    }
+  } catch (err) {
+    console.error("AI deck generation failed, using fallback:", err);
+  }
+
+  return generateDeckSlides(idea);
 }
 
 export interface InvestorPersonaInfo {
@@ -216,32 +286,34 @@ export interface InvestorPersonaInfo {
 }
 
 const PERSONA_SYSTEM_PROMPTS: Record<string, string> = {
-  "aggressive-vc": `You are an aggressive, high-stakes venture capitalist. You challenge every claim with sharp, pointed questions. You care about defensibility, unit economics, and why this won't get crushed by incumbents. You speak with authority and directness. Never let a weak answer slide.`,
-  "curious-angel": `You are a curious, empathetic angel investor. You ask thoughtful questions about the founder's motivation, user insights, and what they've learned. You care about the founder-market fit and the human story behind the startup.`,
-  "skeptical-judge": `You are a skeptical pitch competition judge. You require evidence for every claim. You challenge assumptions, ask for data, and probe for the weakest point in the thesis. You are fair but unforgiving of vague answers.`,
+  "aggressive-vc": `You are a tough investor named Marcus. You ask one short, direct question at a time. Use simple everyday English — no fancy words. You push back on weak points. You want clear answers about money, competition, and survival. Speak in 1-2 short sentences only. No speeches.`,
+
+  "curious-angel": `You are a friendly investor named Sarah. You ask one simple question at a time in plain English. You care about the founder's story, their users, and what they've learned. Be warm but direct. Speak in 1 short sentence only.`,
+
+  "skeptical-judge": `You are a careful pitch judge named David. You ask one focused question at a time using simple, plain English. You want real evidence — not promises. You check if numbers make sense and if the plan is realistic. Speak in 1-2 short sentences only.`,
 };
 
 const FALLBACK_QUESTIONS: Record<string, string[]> = {
   "aggressive-vc": [
-    "Why won't a well-funded incumbent crush you in six months?",
-    "What is the one number that, if it doesn't move, kills this company?",
-    "Walk me through unit economics. CAC, LTV, payback — be specific.",
-    "If I gave you one million dollars right now, what's the first hire and why?",
-    "What part of this pitch did you rehearse the most? Skip it — convince me without it.",
+    "Who is your biggest competitor, and why can't they just copy what you're doing?",
+    "How much does it cost you to get one customer, and how much do they pay you?",
+    "If I gave you money today, what's the very first thing you'd spend it on?",
+    "What's the one thing that could kill this company?",
+    "Have you actually talked to customers, and what did they say?",
   ],
   "curious-angel": [
-    "What's the moment you knew this was worth quitting everything for?",
-    "Tell me about the user you've spoken to who needed this most.",
-    "What's the most surprising thing you've learned building this?",
-    "If we shipped tomorrow, what's the first thing a user would feel?",
+    "What's your personal story — why did you decide to build this?",
+    "Tell me about a real person who needs this. What is their day like?",
+    "What's the most surprising thing you learned while building this?",
+    "If you launch tomorrow, what does a user feel in the first five minutes?",
     "What part of this scares you the most, honestly?",
   ],
   "skeptical-judge": [
-    "What's your evidence that the problem is real and not just annoying?",
-    "Three competitors do part of this. Why is your wedge defensible?",
-    "What assumption, if wrong, breaks the whole thesis?",
-    "How do you know your target audience will pay, not just download?",
-    "What's the honest reason this hasn't been built yet?",
+    "What's your proof that people really have this problem — not just find it annoying?",
+    "Other tools do part of this already. What makes yours better?",
+    "What's the one thing, if you got it wrong, that would break the whole plan?",
+    "How do you know people will pay money for this — not just use a free version?",
+    "Why hasn't a bigger company built this already?",
   ],
 };
 
@@ -249,18 +321,19 @@ export async function pickAIInvestorQuestion(
   personaSlug: string,
   idea: Idea,
   conversationHistory: Array<{ role: "user" | "investor"; content: string }>,
-  language?: string
+  language?: string,
 ): Promise<string> {
   const systemPrompt = PERSONA_SYSTEM_PROMPTS[personaSlug] ?? PERSONA_SYSTEM_PROMPTS["curious-angel"]!;
 
   const pitchContext = [
     idea.title ? `Startup: ${idea.title}` : null,
-    idea.problem ? `Problem: ${idea.problem}` : null,
-    idea.solution ? `Solution: ${idea.solution}` : null,
-    idea.market ? `Market: ${idea.market}` : null,
-    idea.businessModel ? `Business Model: ${idea.businessModel}` : null,
-    idea.competitiveEdge ? `Competitive Edge: ${idea.competitiveEdge}` : null,
-    idea.targetAudience ? `Target Audience: ${idea.targetAudience}` : null,
+    idea.rawText ? `What they built: ${idea.rawText.slice(0, 400)}` : null,
+    idea.problem ? `The problem they solve: ${idea.problem}` : null,
+    idea.solution ? `Their solution: ${idea.solution}` : null,
+    idea.market ? `Their market: ${idea.market}` : null,
+    idea.businessModel ? `How they make money: ${idea.businessModel}` : null,
+    idea.competitiveEdge ? `Why they win: ${idea.competitiveEdge}` : null,
+    idea.targetAudience ? `Who they sell to: ${idea.targetAudience}` : null,
   ].filter(Boolean).join("\n");
 
   const previousQuestions = conversationHistory
@@ -272,31 +345,31 @@ export async function pickAIInvestorQuestion(
     .map((m) => m.content);
 
   const languageInstruction = language && language !== "en"
-    ? `\nIMPORTANT: Respond in the same language as the founder. Detected language: ${language}. Ask your question in that language.`
+    ? `\nIMPORTANT: Ask your question in this language: ${language}. Use simple words in that language.`
     : "";
 
-  const userContent = `PITCH CONTEXT:
+  const userContent = `STARTUP INFO:
 ${pitchContext}
 
-CONVERSATION SO FAR (investor questions already asked):
-${previousQuestions.length > 0 ? previousQuestions.map((q, i) => `Q${i + 1}: ${q}`).join("\n") : "This is the first question."}
+QUESTIONS ALREADY ASKED (do not repeat these):
+${previousQuestions.length > 0 ? previousQuestions.map((q, i) => `${i + 1}. ${q}`).join("\n") : "None yet — this is the first question."}
 
-FOUNDER RESPONSES SO FAR:
-${previousAnswers.length > 0 ? previousAnswers.map((a, i) => `A${i + 1}: ${a}`).join("\n") : "No answers yet."}
+FOUNDER'S ANSWERS SO FAR:
+${previousAnswers.length > 0 ? previousAnswers.map((a, i) => `${i + 1}. ${a}`).join("\n") : "No answers yet."}
 
-Generate ONE sharp investor question based on:
-1. The specific content of their pitch (reference actual details they've shared)
-2. Their most recent answer — probe weaknesses or follow up on claims
-3. Do NOT repeat or paraphrase previous questions
-4. Be specific to THIS startup, not generic
-5. Maximum 2 sentences
+Ask ONE short question (1-2 sentences max) that:
+1. Is specific to this startup — not generic
+2. Builds on their most recent answer if there is one
+3. Uses simple everyday English — no jargon
+4. Has NOT been asked before
+5. Gets at something important they haven't fully explained yet
 
-Just output the question, nothing else.${languageInstruction}`;
+Output ONLY the question. Nothing else.${languageInstruction}`;
 
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-5.1",
-      max_completion_tokens: 200,
+      model: "gpt-4.1",
+      max_completion_tokens: 120,
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userContent },
@@ -348,20 +421,64 @@ export function scorePitchTurn(content: string): {
 
   let feedback: string;
   if (clarity > 78 && confidence > 78) {
-    feedback = "Sharp delivery — your point landed in one breath. Keep that pace and tighten one specific number into the next answer.";
+    feedback = "Good answer! You were clear and confident. Keep that energy — add one concrete number next time if you can.";
   } else if (fillerWords > 3) {
-    feedback = `You leaned on filler words ${fillerWords} times. Pause instead — silence reads as confidence, hedging reads as doubt.`;
+    feedback = `You used filler words ${fillerWords} times. Try pausing instead — silence sounds more confident than "um" or "like."`;
   } else if (hedgeCount > 1) {
-    feedback = "Drop the hedging language. Replace 'I think' with 'we know' and back it with one concrete data point.";
+    feedback = "Remove the hedging — phrases like 'I think' or 'maybe' make you sound unsure. Say it like you know it.";
   } else if (avgSentenceLength > 25) {
-    feedback = "Sentences are running long. Cut each one in half — investors lose your thesis when you stack clauses.";
+    feedback = "Your answer ran a bit long. Try to cut it in half — one clear point is better than three tangled ones.";
   } else if (wordCount < 25) {
-    feedback = "Too short. Investors need the why, the what, and the proof in one breath. Add a concrete example.";
+    feedback = "A bit short. Investors want to understand your thinking — add one example or one number to back it up.";
   } else {
-    feedback = "Solid turn. Tighten the close — finish on the strongest sentence, not the longest one.";
+    feedback = "Solid answer. Finish stronger — end with your boldest sentence, not your safest one.";
   }
 
   return { feedback, confidence, clarity, fillerWords };
+}
+
+async function generateAIFeedback(
+  content: string,
+  lastQuestion: string | undefined,
+  scores: { confidence: number; clarity: number; fillerWords: number },
+): Promise<string> {
+  const prompt = `A founder is practicing their investor pitch.
+
+The investor asked: "${lastQuestion ?? "Tell me about your startup."}"
+
+The founder answered: "${content.slice(0, 400)}"
+
+Give them 1-2 sentences of coaching in simple, plain English:
+- Be honest but kind
+- Point out the ONE most important thing to improve
+- Keep it short (under 35 words total)
+- No jargon, no complex words
+- Sound like a helpful coach, not a professor
+
+Extra context: confidence score ${scores.confidence}/100, clarity score ${scores.clarity}/100, filler words used: ${scores.fillerWords}`;
+
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    max_completion_tokens: 80,
+    messages: [{ role: "user", content: prompt }],
+  });
+  return response.choices[0]?.message?.content?.trim() ?? "";
+}
+
+export async function scoreAndCoachTurn(
+  content: string,
+  lastQuestion?: string,
+): Promise<{ feedback: string; confidence: number; clarity: number; fillerWords: number }> {
+  const scores = scorePitchTurn(content);
+  try {
+    const aiFeedback = await generateAIFeedback(content, lastQuestion, scores);
+    if (aiFeedback && aiFeedback.length > 10) {
+      return { ...scores, feedback: aiFeedback };
+    }
+  } catch (err) {
+    console.error("AI feedback failed, using heuristic:", err);
+  }
+  return scores;
 }
 
 export interface SessionMistake {
@@ -392,7 +509,7 @@ export function summarizeSession(
       confidenceScore: 50,
       clarityScore: 50,
       investorReadiness: 50,
-      summary: "No user turns recorded — start a new session and pitch at least once to get a real read.",
+      summary: "No answers were recorded. Start a new session and pitch at least once to get real feedback.",
       mistakes: [],
     };
   }
@@ -419,26 +536,26 @@ export function summarizeSession(
   if (totalFillers > 5) {
     mistakes.push({
       title: "Too many filler words",
-      description: `You used ${totalFillers} filler words across the session. Investors register every "um" as hesitation.`,
-      suggestion: "Replace filler with a half-second pause. Practice three answers out loud with no fillers at all.",
+      description: `You said filler words like "um", "like", or "basically" ${totalFillers} times. Investors notice this and read it as nervousness.`,
+      suggestion: "Practice pausing instead of filling silence. Record yourself answering one question with zero fillers.",
       severity: totalFillers > 10 ? "high" : "medium",
     });
   }
 
   if (confidenceScore < 65) {
     mistakes.push({
-      title: "Low confidence signal",
-      description: "Your phrasing leaned on hedging like 'I think' and 'maybe'. That tells the room you don't fully believe the thesis.",
-      suggestion: "Rewrite each answer to lead with a definitive statement. Open with the strongest sentence, not the safest.",
+      title: "Sounded unsure",
+      description: "You used phrases like 'I think', 'maybe', or 'hopefully' — these make you sound like you don't fully believe in your own idea.",
+      suggestion: "Start each answer with a strong, clear statement. Lead with what you know, not what you hope.",
       severity: "high",
     });
   }
 
   if (clarityScore < 65) {
     mistakes.push({
-      title: "Hard-to-follow structure",
-      description: "Several answers ran long or buried the point. The investor lost the thesis halfway through.",
-      suggestion: "Use the formula: claim, proof, why-it-matters. One sentence each. Stop talking after the third.",
+      title: "Hard to follow",
+      description: "Some answers were too long or went in circles. The investor probably lost track of your main point.",
+      suggestion: "Use this pattern for every answer: one clear claim, one proof, one sentence on why it matters. Then stop.",
       severity: "medium",
     });
   }
@@ -446,19 +563,19 @@ export function summarizeSession(
   const shortTurns = userTurns.filter((t) => t.content.trim().split(/\s+/).length < 25).length;
   if (shortTurns >= Math.max(2, userTurns.length / 2)) {
     mistakes.push({
-      title: "Answers under-developed",
-      description: "You answered in fragments. Investors need the what, the why, and the proof — every time.",
-      suggestion: "For each question, force yourself to add one concrete example, one number, and one sentence about what it means.",
+      title: "Answers were too short",
+      description: "Several of your answers were too brief. Investors need the what, the why, and the proof in every answer.",
+      suggestion: "For each question, add one concrete example and one number. That alone will double the quality of your answer.",
       severity: "medium",
     });
   }
 
   const summary =
     overallScore >= 80
-      ? "Strong session. You sounded like a founder who has done the reps. Focus on tightening the close on each answer."
+      ? "Great session! You sounded like a founder who knows their stuff. Focus on ending each answer with your strongest sentence."
       : overallScore >= 65
-        ? "Solid foundation. Confidence and clarity are workable — bring more concrete numbers and sharper closes next time."
-        : "Real work to do, but every founder starts here. Drill the opening sentence of each answer until it's reflexive.";
+        ? "Good start. Your confidence and clarity are developing — bring in more specific numbers and facts next time."
+        : "You've got work to do, but so did every great founder at the start. Drill the opening sentence of each answer until it feels natural.";
 
   return { overallScore, confidenceScore, clarityScore, investorReadiness, summary, mistakes };
 }
@@ -482,4 +599,4 @@ export async function generateInvestorAudio(text: string, _language?: string): P
   }
 }
 
-export const MAX_SESSION_TURNS = 5;
+export const MAX_SESSION_TURNS = 7;

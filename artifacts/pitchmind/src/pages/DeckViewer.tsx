@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import {
   useGetDeck,
   getGetDeckQueryKey,
@@ -16,19 +16,20 @@ import {
   ArrowLeft,
   Download,
   Maximize2,
+  Mic,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 const LAYOUT_LABEL: Record<string, string> = {
   title: "Cover",
-  problem: "Problem",
-  solution: "Solution",
-  market: "Market",
-  business: "Business model",
-  edge: "Competitive edge",
-  demo: "Demo",
-  traction: "Traction & roadmap",
-  ask: "The ask",
+  problem: "The Problem",
+  solution: "Our Solution",
+  market: "Who Buys This",
+  business: "How We Make Money",
+  edge: "Why We Win",
+  demo: "See It In Action",
+  traction: "Progress",
+  ask: "What We Need",
 };
 
 const LAYOUT_ACCENT: Record<string, string> = {
@@ -44,6 +45,7 @@ const LAYOUT_ACCENT: Record<string, string> = {
 };
 
 export default function DeckViewerPage({ deckId }: { deckId: string }) {
+  const [, setLocation] = useLocation();
   const deckQ = useGetDeck(deckId, {
     query: { enabled: !!deckId, queryKey: getGetDeckQueryKey(deckId) },
   });
@@ -67,18 +69,18 @@ export default function DeckViewerPage({ deckId }: { deckId: string }) {
     .slide { width: 100%; min-height: 100vh; display: flex; flex-direction: column; padding: 64px; page-break-after: always; position: relative; }
     .slide-cover { background: linear-gradient(135deg, #18181b 0%, #09090b 100%); }
     .slide-content { background: #111113; border-bottom: 1px solid #27272a; }
-    .slide-number { font-family: monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 0.2em; color: #71717a; margin-bottom: auto; }
-    .slide-label { font-family: monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 0.2em; color: #71717a; }
     .slide-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; }
+    .slide-num { font-family: monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 0.2em; color: #71717a; }
+    .slide-label { font-family: monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 0.2em; color: #71717a; }
     .slide-body { flex: 1; display: flex; flex-direction: column; justify-content: center; }
     .slide-title { font-size: 48px; font-weight: 700; line-height: 1.1; letter-spacing: -0.02em; color: #fafafa; margin-bottom: 24px; }
-    .slide-title-cover { font-size: 72px; }
+    .slide-title-cover { font-size: 64px; }
     .slide-desc { font-size: 18px; color: #a1a1aa; line-height: 1.7; max-width: 700px; margin-bottom: 32px; }
+    .accent-bar { width: 56px; height: 4px; background: #f97316; border-radius: 2px; margin-bottom: 28px; }
     .bullet-list { list-style: none; }
-    .bullet-item { display: flex; gap: 16px; margin-bottom: 12px; font-size: 16px; color: #d4d4d8; }
-    .bullet-num { font-family: monospace; color: #a78bfa; flex-shrink: 0; }
-    .accent-bar { width: 64px; height: 4px; background: #a78bfa; border-radius: 2px; margin-bottom: 32px; }
-    .footer { font-family: monospace; font-size: 11px; color: #52525b; margin-top: auto; padding-top: 32px; border-top: 1px solid #27272a; }
+    .bullet-item { display: flex; gap: 16px; margin-bottom: 10px; font-size: 16px; color: #d4d4d8; }
+    .bullet-num { font-family: monospace; color: #f97316; flex-shrink: 0; }
+    .footer { font-family: monospace; font-size: 11px; color: #52525b; margin-top: auto; padding-top: 28px; border-top: 1px solid #27272a; }
     @media print { .slide { page-break-after: always; min-height: 100vh; } }
   </style>
 </head>
@@ -86,11 +88,11 @@ export default function DeckViewerPage({ deckId }: { deckId: string }) {
 ${deck.slides.map((slide, i) => `
   <div class="slide ${slide.layout === 'title' ? 'slide-cover' : 'slide-content'}">
     <div class="slide-header">
-      <span class="slide-number">${String(i + 1).padStart(2, '0')} / ${String(deck.slides.length).padStart(2, '0')}</span>
+      <span class="slide-num">${String(i + 1).padStart(2, '0')} / ${String(deck.slides.length).padStart(2, '0')}</span>
       <span class="slide-label">${LAYOUT_LABEL[slide.layout] ?? slide.layout}</span>
     </div>
     <div class="slide-body">
-      <div class="accent-bar"></div>
+      ${slide.layout !== 'title' ? '<div class="accent-bar"></div>' : ''}
       <h2 class="slide-title ${slide.layout === 'title' ? 'slide-title-cover' : ''}">${slide.title}</h2>
       <p class="slide-desc">${slide.body}</p>
       ${slide.bullets && slide.bullets.length > 0 ? `
@@ -146,23 +148,28 @@ ${deck.slides.map((slide, i) => `
         <div>
           <div className="font-mono text-xs uppercase tracking-[0.2em] text-primary">
             <Presentation className="h-3.5 w-3.5 inline mr-1" />
-            Pitch deck preview
+            Pitch deck
           </div>
           <h1 className="font-display text-3xl md:text-4xl font-semibold mt-2 tracking-tight">
             {deck.title}
           </h1>
           {deck.storyline && (
-            <p className="text-muted-foreground mt-2 max-w-2xl">
-              {deck.storyline}
-            </p>
+            <p className="text-muted-foreground mt-2 max-w-2xl text-sm">{deck.storyline}</p>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button
+            onClick={() => setLocation(`/train/new?ideaId=${deck.ideaId}`)}
+            title="Start a practice session using this pitch"
+          >
+            <Mic className="h-3.5 w-3.5 mr-1.5" />
+            Practice this pitch
+          </Button>
           <Button
             variant="outline"
             size="sm"
             onClick={() => setFullscreen((v) => !v)}
-            title={fullscreen ? "Exit fullscreen" : "Fullscreen preview"}
+            title={fullscreen ? "Exit fullscreen" : "Fullscreen view"}
           >
             <Maximize2 className="h-3.5 w-3.5 mr-1" />
             {fullscreen ? "Exit" : "Fullscreen"}
@@ -171,7 +178,7 @@ ${deck.slides.map((slide, i) => `
             variant="outline"
             size="sm"
             onClick={handleDownload}
-            title="Download pitch deck as HTML (open in browser and print to PDF)"
+            title="Download as HTML — open in browser and print to PDF"
           >
             <Download className="h-3.5 w-3.5 mr-1" />
             Download
@@ -180,11 +187,8 @@ ${deck.slides.map((slide, i) => `
       </div>
 
       {fullscreen && (
-        <div
-          className="fixed inset-0 z-50 bg-background flex flex-col"
-          onClick={() => setFullscreen(false)}
-        >
-          <div className="flex-1 flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 bg-background flex flex-col">
+          <div className="flex-1 flex flex-col overflow-hidden">
             <div className="flex items-center justify-between px-6 py-3 border-b border-border bg-background/80 backdrop-blur">
               <span className="font-mono text-xs uppercase tracking-widest text-muted-foreground">
                 {String(active + 1).padStart(2, "0")} / {String(total).padStart(2, "0")} · {LAYOUT_LABEL[slide.layout] ?? slide.layout}
@@ -214,8 +218,8 @@ ${deck.slides.map((slide, i) => `
         </div>
       )}
 
-      <div className="grid lg:grid-cols-[280px_1fr] gap-6" ref={deckRef}>
-        <div className="space-y-2 max-h-[600px] overflow-y-auto pr-2">
+      <div className="grid lg:grid-cols-[260px_1fr] gap-6" ref={deckRef}>
+        <div className="space-y-1.5 max-h-[600px] overflow-y-auto pr-1">
           {deck.slides.map((s, i) => (
             <button
               key={i}
@@ -225,7 +229,6 @@ ${deck.slides.map((slide, i) => `
                   ? "border-primary bg-primary/5"
                   : "border-border bg-card hover:border-foreground/20"
               }`}
-              data-testid={`slide-thumb-${i}`}
             >
               <div className="flex items-center gap-2">
                 <span className="font-mono text-[10px] tracking-widest text-muted-foreground">
@@ -235,7 +238,7 @@ ${deck.slides.map((slide, i) => `
                   {LAYOUT_LABEL[s.layout] ?? s.layout}
                 </Badge>
               </div>
-              <p className="mt-2 text-sm font-medium line-clamp-2">{s.title}</p>
+              <p className="mt-1.5 text-sm font-medium line-clamp-2">{s.title}</p>
             </button>
           ))}
         </div>
@@ -244,10 +247,10 @@ ${deck.slides.map((slide, i) => `
           <AnimatePresence mode="wait">
             <motion.div
               key={active}
-              initial={{ opacity: 0, x: 24 }}
+              initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -24 }}
-              transition={{ duration: 0.25 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.2 }}
             >
               <Card className="overflow-hidden">
                 <CardContent className="p-0">
@@ -325,29 +328,20 @@ function SlideRender({
           />
         </>
       )}
-
       {!isCover && (
-        <div
-          className={`absolute inset-0 bg-gradient-to-br ${accentGradient} pointer-events-none`}
-        />
+        <div className={`absolute inset-0 bg-gradient-to-br ${accentGradient} pointer-events-none`} />
       )}
 
-      <div className="relative flex items-center justify-between text-xs font-mono tracking-widest opacity-70 shrink-0">
-        <span>
-          {String(index + 1).padStart(2, "0")} / {String(total).padStart(2, "0")}
-        </span>
+      <div className="relative flex items-center justify-between text-xs font-mono tracking-widest opacity-60 shrink-0">
+        <span>{String(index + 1).padStart(2, "0")} / {String(total).padStart(2, "0")}</span>
         <span className="uppercase">{LAYOUT_LABEL[layout] ?? layout}</span>
       </div>
 
       <div className="relative flex-1 flex flex-col justify-center min-h-0">
-        {!isCover && (
-          <div className="w-12 h-1 bg-primary rounded-full mb-6 shrink-0" />
-        )}
+        {!isCover && <div className="w-12 h-1 bg-primary rounded-full mb-6 shrink-0" />}
         <h2
           className={`font-display font-semibold tracking-tight pm-text-balance shrink-0 ${
-            isCover
-              ? "text-4xl md:text-5xl lg:text-6xl"
-              : "text-3xl md:text-4xl"
+            isCover ? "text-4xl md:text-5xl lg:text-6xl" : "text-3xl md:text-4xl"
           }`}
         >
           {title}
@@ -364,10 +358,7 @@ function SlideRender({
         {bullets.length > 0 && (
           <ul className="mt-5 space-y-2 max-w-2xl">
             {bullets.map((b, i) => (
-              <li
-                key={i}
-                className="flex gap-3 text-sm md:text-base text-foreground"
-              >
+              <li key={i} className="flex gap-3 text-sm md:text-base text-foreground">
                 <span className="font-mono text-primary shrink-0">0{i + 1}</span>
                 <span>{b}</span>
               </li>
@@ -377,11 +368,7 @@ function SlideRender({
       </div>
 
       <div className="relative text-xs font-mono opacity-50 shrink-0">
-        PitchMind ·{" "}
-        {new Date().toLocaleDateString(undefined, {
-          year: "numeric",
-          month: "long",
-        })}
+        PitchMind · {new Date().toLocaleDateString(undefined, { year: "numeric", month: "long" })}
       </div>
     </div>
   );
