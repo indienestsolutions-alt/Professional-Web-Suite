@@ -1,0 +1,14 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "JlmZ7ToTBe2_20fm2nG7W"
+uri = "file://artifacts/pitchmind-demo/public/hero-bg.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "3eVTwR8avanzVg5-mUSW3"
+uri = "file://artifacts/pitchmind-demo/public/gradient-mesh.png"
+type = "image"
+title = "generated_image"

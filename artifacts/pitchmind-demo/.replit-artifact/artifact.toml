@@ -1,0 +1,31 @@
+kind = "video"
+previewPath = "/pitchmind-demo/"
+title = "PitchMind AI — Platform Demo"
+version = "1.0.0"
+id = "artifacts/pitchmind-demo"
+router = "path"
+
+[[integratedSkills]]
+name = "video-js"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/pitchmind-demo/" ]
+localPort = 22312
+
+[services.development]
+run = "pnpm --filter @workspace/pitchmind-demo run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/pitchmind-demo", "run", "build" ]
+publicDir = "artifacts/pitchmind-demo/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "22312"
+BASE_PATH = "/pitchmind-demo/"
