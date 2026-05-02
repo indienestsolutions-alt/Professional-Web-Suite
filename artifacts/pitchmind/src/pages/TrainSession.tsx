@@ -277,7 +277,7 @@ export default function TrainSessionPage({ id }: { id: string }) {
               <select
                 value={language}
                 onChange={(e) => setLanguage(e.target.value)}
-                className="hidden sm:block text-xs border border-border rounded-md px-2 py-1.5 bg-background text-foreground"
+                className="text-xs border border-border rounded-md px-1.5 py-1.5 bg-background text-foreground w-[68px] sm:w-auto"
               >
                 {SUPPORTED_LANGUAGES.map((l) => (
                   <option key={l.code} value={l.code}>{l.label}</option>

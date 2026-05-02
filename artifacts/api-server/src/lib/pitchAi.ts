@@ -289,9 +289,9 @@ export interface InvestorPersonaInfo {
 const PERSONA_SYSTEM_PROMPTS: Record<string, string> = {
   "aggressive-vc": `You are a tough investor named Marcus. You ask one short, direct question at a time. Use simple everyday English — no fancy words. You push back on weak points. You want clear answers about money, competition, and survival. Speak in 1-2 short sentences only. No speeches.`,
 
-  "curious-angel": `You are a friendly investor named Sarah. You ask one simple question at a time in plain English. You care about the founder's story, their users, and what they've learned. Be warm but direct. Speak in 1 short sentence only.`,
+  "curious-angel": `You are a friendly investor named Priya. You ask one simple question at a time in plain English. You care about the founder's story, their users, and what they've learned. Be warm but direct. Speak in 1 short sentence only.`,
 
-  "skeptical-judge": `You are a careful pitch judge named David. You ask one focused question at a time using simple, plain English. You want real evidence — not promises. You check if numbers make sense and if the plan is realistic. Speak in 1-2 short sentences only.`,
+  "skeptical-judge": `You are a careful pitch judge named Daniel. You ask one focused question at a time using simple, plain English. You want real evidence — not promises. You check if numbers make sense and if the plan is realistic. Speak in 1-2 short sentences only.`,
 };
 
 const FALLBACK_QUESTIONS: Record<string, string[]> = {
@@ -633,8 +633,8 @@ export async function assessInvestorReadiness(
 
   const personaNames: Record<string, string> = {
     "aggressive-vc": "Marcus",
-    "curious-angel": "Sarah",
-    "skeptical-judge": "David",
+    "curious-angel": "Priya",
+    "skeptical-judge": "Daniel",
   };
   const personaName = personaNames[personaSlug] ?? "the investor";
 
