@@ -398,7 +398,7 @@ function StatCard({
             {icon}
           </span>
         </div>
-        <div className="mt-3 font-display text-3xl font-semibold tracking-tight">
+        <div className="mt-3 font-display text-2xl lg:text-3xl font-semibold tracking-tight truncate">
           {value === null ? <Skeleton className="h-8 w-16" /> : value}
         </div>
         {delta != null && delta !== 0 && (
