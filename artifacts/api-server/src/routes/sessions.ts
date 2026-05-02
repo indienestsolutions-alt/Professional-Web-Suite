@@ -27,7 +27,9 @@ import {
   summarizeSession,
   transcribeAudio,
   generateInvestorAudio,
+  assessInvestorReadiness,
 } from "../lib/pitchAi";
+import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 
@@ -303,6 +305,33 @@ router.post("/sessions/:id/messages", async (req: Request, res: Response): Promi
     .filter((m) => m.role === "user" || m.role === "investor")
     .map((m) => ({ role: m.role as "user" | "investor", content: m.content }));
 
+  const allUserTurns = allMessages.filter((m) => m.role === "user");
+  const readiness = await assessInvestorReadiness(
+    allUserTurns.map((m) => ({
+      content: m.content,
+      confidence: m.confidence,
+      clarity: m.clarity,
+      fillerWords: m.fillerWords,
+    })),
+    conversationHistory,
+    session.personaSlug,
+  );
+
+  if (readiness.ready && readiness.closingMessage) {
+    logger.info({ sessionId: session.id }, "AI declared founder ready — auto-finishing session");
+    await db.insert(sessionMessagesTable).values({
+      sessionId: session.id,
+      role: "investor",
+      content: readiness.closingMessage,
+    });
+    await finishSessionById(session.id);
+    const closingAudioBuffer = await generateInvestorAudio(readiness.closingMessage, body.data.language).catch(() => null);
+    const closingAudioB64 = closingAudioBuffer ? closingAudioBuffer.toString("base64") : "";
+    const detail = await loadSessionDetail(session.id, userId);
+    res.json({ ...detail!, investorAudio: closingAudioB64, autoFinished: true });
+    return;
+  }
+
   const investorReply = await pickAIInvestorQuestion(
     session.personaSlug,
     idea,
@@ -399,6 +428,33 @@ router.post("/sessions/:id/voice-messages", async (req: Request, res: Response):
   const conversationHistory = allMessages
     .filter((m) => m.role === "user" || m.role === "investor")
     .map((m) => ({ role: m.role as "user" | "investor", content: m.content }));
+
+  const allUserTurns = allMessages.filter((m) => m.role === "user");
+  const readiness = await assessInvestorReadiness(
+    allUserTurns.map((m) => ({
+      content: m.content,
+      confidence: m.confidence,
+      clarity: m.clarity,
+      fillerWords: m.fillerWords,
+    })),
+    conversationHistory,
+    session.personaSlug,
+  );
+
+  if (readiness.ready && readiness.closingMessage) {
+    logger.info({ sessionId: session.id }, "AI declared founder ready — auto-finishing session");
+    await db.insert(sessionMessagesTable).values({
+      sessionId: session.id,
+      role: "investor",
+      content: readiness.closingMessage,
+    });
+    await finishSessionById(session.id);
+    const closingAudioBuffer = await generateInvestorAudio(readiness.closingMessage, body.data.language).catch(() => null);
+    const closingAudioB64 = closingAudioBuffer ? closingAudioBuffer.toString("base64") : "";
+    const detail = await loadSessionDetail(session.id, userId);
+    res.json({ ...detail!, transcript, investorAudio: closingAudioB64, autoFinished: true });
+    return;
+  }
 
   const investorReply = await pickAIInvestorQuestion(
     session.personaSlug,

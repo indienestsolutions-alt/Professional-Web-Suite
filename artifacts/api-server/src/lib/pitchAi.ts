@@ -5,6 +5,7 @@ import {
   textToSpeech,
   detectAudioFormat,
 } from "@workspace/integrations-openai-ai-server/audio";
+import { logger } from "./logger";
 
 export interface StructuredIdea {
   problem: string;
@@ -272,7 +273,7 @@ Rules:
       return { title, storyline, slides: parsed.slides };
     }
   } catch (err) {
-    console.error("AI deck generation failed, using fallback:", err);
+    logger.warn({ err }, "AI deck generation failed, using fallback");
   }
 
   return generateDeckSlides(idea);
@@ -378,7 +379,7 @@ Output ONLY the question. Nothing else.${languageInstruction}`;
     const question = response.choices[0]?.message?.content?.trim();
     if (question && question.length > 10) return question;
   } catch (err) {
-    console.error("AI question generation failed, using fallback:", err);
+    logger.warn({ err }, "AI question generation failed, using fallback");
   }
 
   const bank = FALLBACK_QUESTIONS[personaSlug] ?? FALLBACK_QUESTIONS["curious-angel"]!;
@@ -476,7 +477,7 @@ export async function scoreAndCoachTurn(
       return { ...scores, feedback: aiFeedback };
     }
   } catch (err) {
-    console.error("AI feedback failed, using heuristic:", err);
+    logger.warn({ err }, "AI feedback failed, using heuristic");
   }
   return scores;
 }
@@ -588,7 +589,7 @@ export async function transcribeAudio(audioBuffer: Buffer): Promise<string> {
       : "webm";
     return await speechToText(audioBuffer, format);
   } catch (err) {
-    console.error("STT failed:", err);
+    logger.warn({ err }, "STT failed");
     return "";
   }
 }
@@ -597,7 +598,87 @@ export async function generateInvestorAudio(text: string, _language?: string): P
   try {
     return await textToSpeech(text, "onyx", "mp3");
   } catch (err) {
-    console.error("TTS failed:", err);
+    logger.warn({ err }, "TTS failed");
     return null;
+  }
+}
+
+export async function assessInvestorReadiness(
+  userTurns: Array<{
+    content: string;
+    confidence: number | null;
+    clarity: number | null;
+    fillerWords: number | null;
+  }>,
+  conversationHistory: Array<{ role: "user" | "investor"; content: string }>,
+  personaSlug: string,
+): Promise<{ ready: boolean; closingMessage: string }> {
+  if (userTurns.length < 4) {
+    return { ready: false, closingMessage: "" };
+  }
+
+  const avg = (vals: (number | null)[]) => {
+    const filtered = vals.filter((v): v is number => typeof v === "number");
+    if (filtered.length === 0) return 0;
+    return filtered.reduce((a, b) => a + b, 0) / filtered.length;
+  };
+
+  const avgConf = avg(userTurns.map((t) => t.confidence));
+  const avgClarity = avg(userTurns.map((t) => t.clarity));
+  const totalFillers = userTurns.reduce((a, t) => a + (t.fillerWords ?? 0), 0);
+
+  if (avgConf < 68 || avgClarity < 68 || totalFillers > userTurns.length * 3) {
+    return { ready: false, closingMessage: "" };
+  }
+
+  const personaNames: Record<string, string> = {
+    "aggressive-vc": "Marcus",
+    "curious-angel": "Sarah",
+    "skeptical-judge": "David",
+  };
+  const personaName = personaNames[personaSlug] ?? "the investor";
+
+  const recentHistory = conversationHistory
+    .slice(-8)
+    .map((m) => `${m.role === "investor" ? personaName : "Founder"}: ${m.content}`)
+    .join("\n");
+
+  const prompt = `You are ${personaName}, a tough investor evaluating whether a founder is ready to pitch to real investors.
+
+Recent conversation:
+${recentHistory}
+
+Performance stats:
+- Average confidence: ${Math.round(avgConf)}/100
+- Average clarity: ${Math.round(avgClarity)}/100
+- Total filler words used: ${totalFillers}
+- Turns completed: ${userTurns.length}
+
+Based on the quality of their answers, clarity of thinking, and confidence: are they genuinely ready to walk into a real investor meeting RIGHT NOW?
+
+Only say ready=true if they have consistently given clear, confident, specific answers. Be honest — don't approve prematurely.
+
+Reply with JSON only:
+{
+  "ready": true or false,
+  "closingMessage": "What you (${personaName}) say directly to the founder. If ready: congratulate them warmly, tell them they're ready for the real room, and give one final tip. If not ready: be encouraging but honest — say what specific thing still needs work. Under 50 words."
+}`;
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      max_completion_tokens: 140,
+      messages: [{ role: "user", content: prompt }],
+      response_format: { type: "json_object" },
+    });
+    const raw = response.choices[0]?.message?.content ?? "{}";
+    const parsed = JSON.parse(raw) as { ready?: boolean; closingMessage?: string };
+    return {
+      ready: parsed.ready === true,
+      closingMessage: parsed.closingMessage ?? "",
+    };
+  } catch (err) {
+    logger.warn({ err }, "Readiness assessment failed");
+    return { ready: false, closingMessage: "" };
   }
 }

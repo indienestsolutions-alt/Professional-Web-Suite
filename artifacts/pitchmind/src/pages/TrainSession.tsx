@@ -113,8 +113,12 @@ export default function TrainSessionPage({ id }: { id: string }) {
         const err = await response.json().catch(() => ({}));
         throw new Error((err as any).error ?? "Send failed");
       }
-      const data = await response.json() as { investorAudio?: string } & PitchSessionDetail;
+      const data = await response.json() as { investorAudio?: string; autoFinished?: boolean } & PitchSessionDetail;
       if (data.investorAudio) playAudio(data.investorAudio);
+      if (data.autoFinished) {
+        toast({ title: "You're investor-ready!", description: "The investor has seen enough — you're ready for the real room." });
+        qc.invalidateQueries({ queryKey: getListSessionsQueryKey() });
+      }
       qc.invalidateQueries({ queryKey: getGetSessionQueryKey(id) });
       setDraft("");
     } catch (err: unknown) {
@@ -168,11 +172,15 @@ export default function TrainSessionPage({ id }: { id: string }) {
         const err = await response.json().catch(() => ({}));
         throw new Error((err as any).error ?? "Voice processing failed");
       }
-      const data = await response.json() as { transcript: string; investorAudio: string } & PitchSessionDetail;
+      const data = await response.json() as { transcript: string; investorAudio: string; autoFinished?: boolean } & PitchSessionDetail;
       if (data.transcript) {
         toast({ title: "Heard:", description: `"${data.transcript.slice(0, 80)}${data.transcript.length > 80 ? "…" : ""}"` });
       }
       if (data.investorAudio) playAudio(data.investorAudio);
+      if (data.autoFinished) {
+        toast({ title: "You're investor-ready!", description: "The investor has seen enough — you're ready for the real room." });
+        qc.invalidateQueries({ queryKey: getListSessionsQueryKey() });
+      }
       qc.invalidateQueries({ queryKey: getGetSessionQueryKey(id) });
     } catch (err: unknown) {
       toast({ title: "Voice error", description: err instanceof Error ? err.message : "Voice failed", variant: "destructive" });
