@@ -472,7 +472,7 @@ export default function LandingPage() {
               ))}
             </ul>
           </div>
-          <div className="relative">
+          <div className="relative overflow-hidden rounded-2xl">
             <div className="absolute -inset-6 pm-aurora opacity-50 pointer-events-none" />
             <div className="relative rounded-2xl border border-border bg-card p-8">
               <div className="font-mono text-xs text-primary tracking-widest">
