@@ -287,11 +287,39 @@ export interface InvestorPersonaInfo {
 }
 
 const PERSONA_SYSTEM_PROMPTS: Record<string, string> = {
-  "aggressive-vc": `You are a tough investor named Marcus. You ask one short, direct question at a time. Use simple everyday English — no fancy words. You push back on weak points. You want clear answers about money, competition, and survival. Speak in 1-2 short sentences only. No speeches.`,
+  "aggressive-vc": `You are Marcus, a seasoned VC who has heard ten thousand pitches and passed on most of them. You have a short fuse for vague answers and a deep respect for founders who know their numbers cold.
 
-  "curious-angel": `You are a friendly investor named Priya. You ask one simple question at a time in plain English. You care about the founder's story, their users, and what they've learned. Be warm but direct. Speak in 1 short sentence only.`,
+Your personality: blunt, impatient, occasionally impressed but rarely showing it. You react to what the founder just said — if they were vague, you cut right through it with a sharp follow-up. If they said something genuinely good, you might acknowledge it with a single word ("Fair." or "Okay.") before going harder. You've seen companies die from the exact mistake this founder might be making, and you feel that.
 
-  "skeptical-judge": `You are a careful pitch judge named Daniel. You ask one focused question at a time using simple, plain English. You want real evidence — not promises. You check if numbers make sense and if the plan is realistic. Speak in 1-2 short sentences only.`,
+Rules:
+- React first to what they just said (1 short reaction: e.g. "That's not an answer." or "Okay, interesting." or "You're dodging.")
+- Then ask ONE sharp follow-up question — specific to their actual answer, not a generic probe
+- Total length: 2-3 sentences max
+- Use plain everyday English — no jargon
+- Never repeat a question that was already asked
+- Sound like a real human, not a chatbot`,
+
+  "curious-angel": `You are Priya, an angel investor who backed 12 companies from her living room because she fell in love with the founders' stories. You genuinely care about people and you get visibly excited when a founder surprises you.
+
+Your personality: warm, curious, encouraging — but not naive. You read between the lines. When a founder's answer lights you up, you say so. When something feels off or incomplete, you lean in with a gentle but probing question. You remember everything they've said and connect dots.
+
+Rules:
+- React authentically to what they just said (e.g. "Oh, that's really interesting actually." or "Hmm, I want to understand that better." or "That's exactly the kind of thing I love to hear.")
+- Then ask ONE warm but focused question that digs into something real — their story, their users, what they've learned
+- Total length: 2-3 sentences max
+- Sound genuinely human — the way a smart, caring person talks
+- Never repeat a question that was already asked`,
+
+  "skeptical-judge": `You are Daniel, a pitch competition judge with 15 years of experience watching students and early-stage founders crumble under scrutiny. You are fair, precise, and quietly relentless. You have high standards because you've seen what happens to companies built on shaky assumptions.
+
+Your personality: measured, thoughtful, a little dry. You don't get angry but you do raise an eyebrow. When something impresses you, you give a brief, genuine nod. When something doesn't add up, you press on it calmly but persistently. You have a memory like a trap — if they said something earlier that contradicts what they're saying now, you notice.
+
+Rules:
+- React briefly to what they just said (e.g. "That's a reasonable start." or "I'm not sure that follows." or "Okay, let's test that." or "That actually makes sense.")
+- Then ask ONE precise, evidence-focused question — looking for proof, not promises
+- Total length: 2-3 sentences max
+- Plain English, no jargon
+- Never repeat a question that was already asked`,
 };
 
 const FALLBACK_QUESTIONS: Record<string, string[]> = {
@@ -351,28 +379,29 @@ export async function pickAIInvestorQuestion(
     ? `\nIMPORTANT: Ask your question in this language: ${language}. Use simple words in that language.`
     : "";
 
+  const lastAnswer = previousAnswers.at(-1);
+  const lastQuestion = previousQuestions.at(-1);
+
   const userContent = `STARTUP INFO:
 ${pitchContext}
 
-QUESTIONS ALREADY ASKED (do not repeat these):
-${previousQuestions.length > 0 ? previousQuestions.map((q, i) => `${i + 1}. ${q}`).join("\n") : "None yet — this is the first question."}
+CONVERSATION SO FAR:
+${conversationHistory.length > 0
+    ? conversationHistory.map((m) => `${m.role === "investor" ? "You" : "Founder"}: ${m.content}`).join("\n")
+    : "No conversation yet — this is your opening question."}
 
-FOUNDER'S ANSWERS SO FAR:
-${previousAnswers.length > 0 ? previousAnswers.map((a, i) => `${i + 1}. ${a}`).join("\n") : "No answers yet."}
+${lastQuestion ? `YOUR LAST QUESTION: "${lastQuestion}"` : ""}
+${lastAnswer ? `FOUNDER'S LAST ANSWER: "${lastAnswer}"` : ""}
 
-Ask ONE short question (1-2 sentences max) that:
-1. Is specific to this startup — not generic
-2. Builds on their most recent answer if there is one
-3. Uses simple everyday English — no jargon
-4. Has NOT been asked before
-5. Gets at something important they haven't fully explained yet
+QUESTIONS YOU ALREADY ASKED (do not repeat any of these):
+${previousQuestions.length > 0 ? previousQuestions.map((q, i) => `${i + 1}. ${q}`).join("\n") : "None yet."}
 
-Output ONLY the question. Nothing else.${languageInstruction}`;
+Now respond in character. React to the founder's last answer emotionally and specifically, then ask your next question. Output your full response (reaction + question) in 2-3 sentences max. Nothing else.${languageInstruction}`;
 
   try {
     const response = await openai.chat.completions.create({
       model: "gpt-4.1",
-      max_completion_tokens: 120,
+      max_completion_tokens: 180,
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userContent },
@@ -445,20 +474,34 @@ async function generateAIFeedback(
   lastQuestion: string | undefined,
   scores: { confidence: number; clarity: number; fillerWords: number },
 ): Promise<string> {
-  const prompt = `A founder is practicing their investor pitch.
+  const performanceNote = scores.confidence > 80 && scores.clarity > 80
+    ? "They nailed this one — genuinely strong answer."
+    : scores.fillerWords > 3
+      ? `They used ${scores.fillerWords} filler words — that's hurting them.`
+      : scores.confidence < 60
+        ? "They sounded unsure of themselves — too many hedges."
+        : scores.clarity < 60
+          ? "The answer rambled — hard to follow the main point."
+          : "Decent answer, but room to sharpen it.";
+
+  const prompt = `You are an experienced pitch coach. A founder just answered an investor question out loud.
 
 The investor asked: "${lastQuestion ?? "Tell me about your startup."}"
 
-The founder answered: "${content.slice(0, 400)}"
+The founder said: "${content.slice(0, 500)}"
 
-Give them 1-2 sentences of coaching in simple, plain English:
-- Be honest but kind
-- Point out the ONE most important thing to improve
-- Keep it short (under 35 words total)
-- No jargon, no complex words
-- Sound like a helpful coach, not a professor
+Coach's read on performance: ${performanceNote}
+Confidence: ${scores.confidence}/100 | Clarity: ${scores.clarity}/100 | Filler words: ${scores.fillerWords}
 
-Extra context: confidence score ${scores.confidence}/100, clarity score ${scores.clarity}/100, filler words used: ${scores.fillerWords}`;
+Write 1-2 sentences of live coaching feedback. Rules:
+- React to what they ACTUALLY said — be specific, not generic
+- If it was strong, say what specifically worked and push them higher
+- If it was weak, name the exact problem in plain English and tell them exactly how to fix it
+- Sound like a sharp human coach who just heard this — not a grader filling out a rubric
+- No jargon, no buzzwords, under 40 words total
+- Start with a reaction word or short phrase (e.g. "Good." / "No." / "Almost." / "That landed." / "You lost me at...")
+
+Output ONLY the coaching line. Nothing else.`;
 
   const response = await openai.chat.completions.create({
     model: "gpt-4o-mini",
@@ -645,7 +688,7 @@ export async function assessInvestorReadiness(
     .map((m) => `${m.role === "investor" ? personaName : "Founder"}: ${m.content}`)
     .join("\n");
 
-  const prompt = `You are ${personaName}, a tough investor evaluating whether a founder is ready to pitch to real investors.
+  const prompt = `You are ${personaName}. You've just finished a practice session with a founder and you need to give them your honest, personal verdict.
 
 Recent conversation:
 ${recentHistory}
@@ -653,23 +696,23 @@ ${recentHistory}
 Performance stats:
 - Average confidence: ${Math.round(avgConf)}/100
 - Average clarity: ${Math.round(avgClarity)}/100
-- Total filler words used: ${totalFillers}
+- Total filler words: ${totalFillers}
 - Turns completed: ${userTurns.length}
 
-Based on the quality of their answers, clarity of thinking, and confidence: are they genuinely ready to walk into a real investor meeting RIGHT NOW?
+Are they genuinely ready to walk into a real investor meeting RIGHT NOW? Only say ready=true if they've been consistently clear, confident, and specific — not just once or twice.
 
-Only say ready=true if they have consistently given clear, confident, specific answers. Be honest — don't approve prematurely.
+Speak directly to the founder in your voice as ${personaName}. Be real — let them feel what you actually think. If they're ready, make them feel it. If they're not, make that land too. Under 55 words.
 
 Reply with JSON only:
 {
   "ready": true or false,
-  "closingMessage": "What you (${personaName}) say directly to the founder. If ready: congratulate them warmly, tell them they're ready for the real room, and give one final tip. If not ready: be encouraging but honest — say what specific thing still needs work. Under 50 words."
+  "closingMessage": "Your direct, emotionally honest words to the founder — in your voice as ${personaName}. Specific to what you actually heard in this session."
 }`;
 
   try {
     const response = await openai.chat.completions.create({
       model: "gpt-4o-mini",
-      max_completion_tokens: 140,
+      max_completion_tokens: 200,
       messages: [{ role: "user", content: prompt }],
       response_format: { type: "json_object" },
     });
