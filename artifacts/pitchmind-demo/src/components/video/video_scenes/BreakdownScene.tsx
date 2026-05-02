@@ -19,61 +19,61 @@ export default function BreakdownScene() {
       transition={{ duration: 0.6 }}
     >
       {/* Left: AI chat interface */}
-      <div className="flex flex-col" style={{ width: '38%', padding: '32px 28px', borderRight: '1px solid rgba(255,255,255,0.06)' }}>
+      <div className="flex flex-col overflow-hidden" style={{ width: '36%', padding: '24px 22px', borderRight: '1px solid rgba(255,255,255,0.06)' }}>
         <motion.div
-          className="flex items-center gap-2 mb-6"
+          className="flex items-center gap-2 mb-4"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.2, duration: 0.5 }}
         >
-          <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: 'rgba(255,91,4,0.2)', border: '1px solid rgba(255,91,4,0.4)' }}>
-            <span style={{ fontSize: '1rem' }}>🤖</span>
+          <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0" style={{ background: 'rgba(255,91,4,0.2)', border: '1px solid rgba(255,91,4,0.4)' }}>
+            <span style={{ fontSize: '0.85rem' }}>🤖</span>
           </div>
-          <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, color: '#FAF7F2', fontSize: '1rem' }}>PitchMind AI</span>
+          <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, color: '#FAF7F2', fontSize: '0.95rem' }}>PitchMind AI</span>
           <div className="flex items-center gap-1 ml-auto">
             <div className="w-2 h-2 rounded-full" style={{ background: '#22C55E' }} />
-            <span style={{ color: '#22C55E', fontSize: '0.75rem' }}>Analyzing</span>
+            <span style={{ color: '#22C55E', fontSize: '0.72rem' }}>Analyzing</span>
           </div>
         </motion.div>
 
         <motion.div
-          className="rounded-xl p-4 mb-4"
+          className="rounded-xl p-3 mb-3"
           style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.4, duration: 0.5 }}
         >
-          <p style={{ color: '#A8A39B', fontSize: '0.88rem', lineHeight: 1.6 }}>
-            "A platform that connects local farms directly to restaurants — cutting out the middleman."
+          <p style={{ color: '#A8A39B', fontSize: '0.85rem', lineHeight: 1.5 }}>
+            "A platform connecting local farms directly to restaurants — cutting out the middleman."
           </p>
         </motion.div>
 
         <motion.div
-          className="rounded-xl p-4"
+          className="rounded-xl p-3"
           style={{ background: 'rgba(255,91,4,0.08)', border: '1px solid rgba(255,91,4,0.2)' }}
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.9, duration: 0.5 }}
         >
-          <p style={{ color: '#FF5B04', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px', letterSpacing: '0.08em', textTransform: 'uppercase' }}>AI Analysis</p>
-          <p style={{ color: '#A8A39B', fontSize: '0.88rem', lineHeight: 1.6 }}>
-            Strong problem-solution fit. I've identified your core pitch pillars. Structuring your deck now...
+          <p style={{ color: '#FF5B04', fontSize: '0.72rem', fontWeight: 600, marginBottom: '4px', letterSpacing: '0.08em', textTransform: 'uppercase' }}>AI Analysis</p>
+          <p style={{ color: '#A8A39B', fontSize: '0.85rem', lineHeight: 1.5 }}>
+            Strong problem-solution fit. Structuring your pitch framework now...
           </p>
         </motion.div>
 
         {/* Deck preview card */}
         <motion.div
-          className="mt-auto rounded-xl p-5 flex flex-col gap-3"
+          className="mt-auto rounded-xl p-4 flex flex-col gap-2"
           style={{ background: '#161616', border: '1px solid rgba(255,255,255,0.07)' }}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 2.5, duration: 0.6 }}
         >
-          <p style={{ color: '#FAF7F2', fontWeight: 700, fontSize: '0.9rem' }}>📊 Pitch Deck Generated</p>
-          <p style={{ color: '#6B6560', fontSize: '0.8rem' }}>8 slides · Investor-ready format</p>
-          <div className="flex gap-2">
+          <p style={{ color: '#FAF7F2', fontWeight: 700, fontSize: '0.88rem' }}>📊 Pitch Deck Generated</p>
+          <p style={{ color: '#6B6560', fontSize: '0.78rem' }}>8 slides · Investor-ready format</p>
+          <div className="flex flex-wrap gap-1.5">
             {['Problem', 'Solution', 'Market', 'Traction', 'Ask'].map((slide) => (
-              <div key={slide} className="px-2 py-1 rounded" style={{ background: 'rgba(123,104,238,0.15)', border: '1px solid rgba(123,104,238,0.25)' }}>
+              <div key={slide} className="px-2 py-0.5 rounded" style={{ background: 'rgba(123,104,238,0.15)', border: '1px solid rgba(123,104,238,0.25)' }}>
                 <span style={{ color: '#7B68EE', fontSize: '0.7rem', fontWeight: 600 }}>{slide}</span>
               </div>
             ))}
@@ -82,9 +82,9 @@ export default function BreakdownScene() {
       </div>
 
       {/* Right: Breakdown cards */}
-      <div className="flex-1 flex flex-col" style={{ padding: '32px 36px', gap: '12px' }}>
+      <div className="flex-1 flex flex-col overflow-hidden" style={{ padding: '24px 28px' }}>
         <motion.h2
-          style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '1.5rem', color: '#FAF7F2', marginBottom: '4px' }}
+          style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '1.3rem', color: '#FAF7F2', marginBottom: '2px', flexShrink: 0 }}
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3, duration: 0.5 }}
@@ -92,7 +92,7 @@ export default function BreakdownScene() {
           Pitch Framework
         </motion.h2>
         <motion.p
-          style={{ color: '#6B6560', fontSize: '0.85rem', marginBottom: '8px' }}
+          style={{ color: '#6B6560', fontSize: '0.82rem', marginBottom: '12px', flexShrink: 0 }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.5, duration: 0.5 }}
@@ -100,32 +100,34 @@ export default function BreakdownScene() {
           AI-structured from your idea in seconds
         </motion.p>
 
-        {BREAKDOWN_ITEMS.map((item, i) => (
-          <motion.div
-            key={item.label}
-            className="rounded-xl p-4 flex gap-4"
-            style={{ background: '#161616', border: `1px solid ${item.color}22` }}
-            initial={{ opacity: 0, x: 30 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.6 + i * 0.2, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-          >
-            <div
-              className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
-              style={{ background: `${item.color}18` }}
+        <div className="flex flex-col flex-1 overflow-hidden" style={{ gap: '8px' }}>
+          {BREAKDOWN_ITEMS.map((item, i) => (
+            <motion.div
+              key={item.label}
+              className="rounded-xl flex gap-3 shrink-0"
+              style={{ background: '#161616', border: `1px solid ${item.color}22`, padding: '10px 14px' }}
+              initial={{ opacity: 0, x: 30 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.6 + i * 0.18, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
             >
-              <span style={{ fontSize: '1.2rem' }}>{item.icon}</span>
-            </div>
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-1">
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', fontWeight: 700, color: item.color, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-                  {item.label}
-                </span>
-                <div className="h-px flex-1" style={{ background: `${item.color}20` }} />
+              <div
+                className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+                style={{ background: `${item.color}18` }}
+              >
+                <span style={{ fontSize: '1rem' }}>{item.icon}</span>
               </div>
-              <p style={{ color: '#A8A39B', fontSize: '0.85rem', lineHeight: 1.55 }}>{item.value}</p>
-            </div>
-          </motion.div>
-        ))}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-0.5">
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem', fontWeight: 700, color: item.color, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                    {item.label}
+                  </span>
+                  <div className="h-px flex-1" style={{ background: `${item.color}20` }} />
+                </div>
+                <p style={{ color: '#A8A39B', fontSize: '0.82rem', lineHeight: 1.45 }}>{item.value}</p>
+              </div>
+            </motion.div>
+          ))}
+        </div>
       </div>
     </motion.div>
   );

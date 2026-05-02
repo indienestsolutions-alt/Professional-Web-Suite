@@ -34,7 +34,7 @@ export default function PersonaScene() {
   return (
     <motion.div
       className="absolute inset-0 flex flex-col items-center justify-center overflow-hidden"
-      style={{ background: '#0D0D0D' }}
+      style={{ background: '#0D0D0D', padding: '20px 40px' }}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0, transition: { duration: 0.5 } }}
@@ -47,12 +47,12 @@ export default function PersonaScene() {
             key={p.name}
             className="absolute rounded-full"
             style={{
-              width: '300px',
-              height: '300px',
-              left: `${15 + i * 30}%`,
-              top: '40%',
+              width: '280px',
+              height: '280px',
+              left: `${17 + i * 28}%`,
+              top: '55%',
               transform: 'translate(-50%, -50%)',
-              background: `radial-gradient(circle, ${p.color}12 0%, transparent 70%)`,
+              background: `radial-gradient(circle, ${p.color}10 0%, transparent 70%)`,
             }}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -63,70 +63,68 @@ export default function PersonaScene() {
 
       {/* Header */}
       <motion.div
-        className="text-center mb-10 z-10"
+        className="text-center mb-5 z-10 shrink-0"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2, duration: 0.6 }}
       >
-        <div className="flex items-center justify-center gap-2 mb-3">
-          <div className="w-2 h-2 rounded-full" style={{ background: '#FF5B04' }} />
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem', color: '#FF5B04', letterSpacing: '0.2em', textTransform: 'uppercase' }}>
+        <div className="flex items-center justify-center gap-2 mb-2">
+          <div className="w-1.5 h-1.5 rounded-full" style={{ background: '#FF5B04' }} />
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: '#FF5B04', letterSpacing: '0.2em', textTransform: 'uppercase' }}>
             Choose Your Investor
           </span>
-          <div className="w-2 h-2 rounded-full" style={{ background: '#FF5B04' }} />
+          <div className="w-1.5 h-1.5 rounded-full" style={{ background: '#FF5B04' }} />
         </div>
-        <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '2.4rem', color: '#FAF7F2', lineHeight: 1.1 }}>
-          The Arena Is Warm.
-          <br />
+        <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '2rem', color: '#FAF7F2', lineHeight: 1.1 }}>
+          The Arena Is Warm.{' '}
           <span style={{ color: '#FF5B04' }}>Pick Your Challenger.</span>
         </h2>
       </motion.div>
 
       {/* Persona cards */}
-      <div className="flex gap-6 z-10 px-10">
+      <div className="flex gap-5 z-10 w-full" style={{ maxWidth: '960px' }}>
         {PERSONAS.map((persona, i) => (
           <motion.div
             key={persona.name}
-            className="flex flex-col rounded-2xl overflow-hidden"
+            className="flex flex-col rounded-2xl overflow-hidden flex-1"
             style={{
-              width: '280px',
               background: '#161616',
               border: `1px solid ${persona.color}30`,
             }}
-            initial={{ opacity: 0, y: 50, scale: 0.95 }}
+            initial={{ opacity: 0, y: 40, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={{ delay: 0.5 + i * 0.2, duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ delay: 0.5 + i * 0.18, duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
           >
             {/* Card top accent */}
-            <div style={{ height: '4px', background: persona.color }} />
+            <div style={{ height: '3px', background: persona.color, flexShrink: 0 }} />
 
-            <div className="p-6 flex flex-col flex-1">
+            <div className="flex flex-col" style={{ padding: '16px 18px' }}>
               {/* Avatar */}
-              <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4" style={{ background: `${persona.color}18`, border: `1px solid ${persona.color}30` }}>
-                <span style={{ fontSize: '1.8rem' }}>{persona.emoji}</span>
+              <div className="w-11 h-11 rounded-xl flex items-center justify-center mb-3 shrink-0" style={{ background: `${persona.color}18`, border: `1px solid ${persona.color}30` }}>
+                <span style={{ fontSize: '1.5rem' }}>{persona.emoji}</span>
               </div>
 
-              <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '1.1rem', color: '#FAF7F2', marginBottom: '2px' }}>{persona.name}</h3>
-              <p style={{ color: persona.color, fontSize: '0.78rem', fontWeight: 600, marginBottom: '6px' }}>{persona.role}</p>
-              <p style={{ color: '#6B6560', fontSize: '0.8rem', marginBottom: '14px', lineHeight: 1.5 }}>{persona.description}</p>
+              <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '1rem', color: '#FAF7F2', marginBottom: '1px' }}>{persona.name}</h3>
+              <p style={{ color: persona.color, fontSize: '0.72rem', fontWeight: 600, marginBottom: '6px' }}>{persona.role}</p>
+              <p style={{ color: '#6B6560', fontSize: '0.78rem', marginBottom: '10px', lineHeight: 1.45 }}>{persona.description}</p>
 
               {/* Style tag */}
-              <div className="mb-4">
+              <div className="mb-3">
                 <span
-                  className="px-3 py-1 rounded-full text-xs font-semibold"
-                  style={{ background: `${persona.color}18`, color: persona.color, border: `1px solid ${persona.color}30` }}
+                  className="px-2.5 py-0.5 rounded-full"
+                  style={{ fontSize: '0.68rem', fontWeight: 700, background: `${persona.color}18`, color: persona.color, border: `1px solid ${persona.color}30` }}
                 >
                   {persona.style}
                 </span>
               </div>
 
               {/* Focus areas */}
-              <div className="flex flex-col gap-1.5 mt-auto">
-                <p style={{ color: '#6B6560', fontSize: '0.72rem', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '4px' }}>Will ask about</p>
+              <div className="flex flex-col gap-1 mb-3">
+                <p style={{ color: '#6B6560', fontSize: '0.68rem', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '3px' }}>Will ask about</p>
                 {persona.focus.map((f) => (
                   <div key={f} className="flex items-center gap-2">
-                    <div className="w-1 h-1 rounded-full" style={{ background: persona.color }} />
-                    <span style={{ color: '#A8A39B', fontSize: '0.82rem' }}>{f}</span>
+                    <div className="w-1 h-1 rounded-full shrink-0" style={{ background: persona.color }} />
+                    <span style={{ color: '#A8A39B', fontSize: '0.78rem' }}>{f}</span>
                   </div>
                 ))}
               </div>
@@ -134,12 +132,12 @@ export default function PersonaScene() {
 
             {/* Select button */}
             <motion.div
-              className="mx-4 mb-5 py-2.5 rounded-xl flex items-center justify-center"
+              className="mx-3 mb-3 py-2 rounded-xl flex items-center justify-center shrink-0"
               style={{ background: i === 0 ? persona.color : 'rgba(255,255,255,0.06)', cursor: 'pointer' }}
               animate={i === 0 ? { scale: [1, 1.03, 1] } : {}}
               transition={{ delay: 2.2, duration: 0.4, repeat: 1 }}
             >
-              <span style={{ color: i === 0 ? '#fff' : '#6B6560', fontWeight: 700, fontSize: '0.88rem' }}>
+              <span style={{ color: i === 0 ? '#fff' : '#6B6560', fontWeight: 700, fontSize: '0.82rem' }}>
                 {i === 0 ? 'Selected ✓' : 'Select'}
               </span>
             </motion.div>
