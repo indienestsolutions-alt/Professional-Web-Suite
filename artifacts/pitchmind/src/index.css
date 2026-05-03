@@ -365,3 +365,10 @@
   font-display: swap;
   src: url(https://fonts.gstatic.com/s/jetbrainsmono/v20/tDbY2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKxjPVmUsaaDhw.woff2) format('woff2');
 }
+
+#replit-badge-landing,
+[data-replit-badge],
+.replit-badge,
+iframe[src*="replit.com/badge"] {
+  display: none !important;
+}
