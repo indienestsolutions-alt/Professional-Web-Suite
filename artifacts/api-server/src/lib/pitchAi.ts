@@ -75,62 +75,19 @@ function pickAudience(text: string): string {
   return hits.join(", ");
 }
 
-export async function structureIdeaText(title: string, rawText: string): Promise<StructuredIdea> {
-  const prompt = `You are a startup pitch coach who helps founders structure their ideas for investor conversations. Analyse this startup idea and write 6 specific, honest sections. Use plain English. No buzzwords. Sound like a real advisor — not a template.
-
-STARTUP TITLE: ${title}
-
-FOUNDER'S RAW DESCRIPTION:
-${rawText}
-
-Write these 6 sections. Each section should be 2-3 sentences, specific to THIS idea (not generic). Use real language an investor would appreciate:
-
-1. problem — The exact pain point. Who experiences it, when, and how badly? Give a concrete example.
-2. solution — What the product actually does. What outcome does the user get? How is it different from doing nothing?
-3. market — Who is the target buyer and how large is this group? Be specific about the wedge audience first, then total opportunity.
-4. businessModel — How money flows in. Who pays, how much, what's the pricing model, and what does a single customer look like in terms of value?
-5. competitiveEdge — What makes this genuinely hard to copy or beat. Name the real unfair advantage.
-6. targetAudience — The specific first wedge of users to target. Be precise — not "everyone who..." but a real demographic/psychographic slice.
-
-Reply with JSON only:
-{
-  "problem": "...",
-  "solution": "...",
-  "market": "...",
-  "businessModel": "...",
-  "competitiveEdge": "...",
-  "targetAudience": "..."
-}`;
-
-  try {
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      max_completion_tokens: 900,
-      response_format: { type: "json_object" },
-      messages: [{ role: "user", content: prompt }],
-    });
-    const raw = response.choices[0]?.message?.content ?? "{}";
-    const parsed = JSON.parse(raw) as Partial<StructuredIdea>;
-    if (parsed.problem && parsed.solution && parsed.market && parsed.businessModel && parsed.competitiveEdge && parsed.targetAudience) {
-      return parsed as StructuredIdea;
-    }
-  } catch (err) {
-    logger.warn({ err }, "AI structuring failed, using heuristic");
-  }
-
-  // Heuristic fallback
+export function structureIdeaText(title: string, rawText: string): StructuredIdea {
   const lead = firstSentence(rawText);
   const keywords = topKeywords(`${title} ${rawText}`, 5);
   const k = keywords.length > 0 ? keywords.join(", ") : title.toLowerCase();
   const audience = pickAudience(rawText);
-  return {
-    problem: `Today, ${audience} struggle with what "${title}" solves. ${lead} The tools that exist are slow, disconnected, and built for someone else.`,
-    solution: `${title} handles the whole job in one place — bringing together ${k} so people get from start to done in minutes, not weeks.`,
-    market: `The opportunity sits at the intersection of ${k}. Even a small slice of ${audience} is a real starting point, with room to expand.`,
-    businessModel: `Free to start, paid for more. Paid plans unlock advanced features and team tools. Long-term: organization plans and accelerator partnerships.`,
-    competitiveEdge: `Most tools only handle one piece. ${title} owns the whole flow — that means better results and a moat that grows with usage.`,
-    targetAudience: audience,
-  };
+
+  const problem = `Today, ${audience} struggle with what "${title}" solves. ${lead} The tools that exist right now are slow, disconnected, and built for someone else — not for the people who actually need it.`;
+  const solution = `${title} is a simple, focused tool that handles the whole job in one place. It brings together ${k} so people can get from start to done in minutes, not weeks — with smart defaults that just work.`;
+  const market = `The opportunity is at the crossing point of ${k}. Even a small slice of ${audience} is a real starting point, with room to grow into nearby areas as the product gets better.`;
+  const businessModel = `Free to start, paid for more. The free plan gets people in the door. Paid plans unlock advanced features and team tools. Long term: school and organization plans, plus partnerships with accelerators and ecosystems.`;
+  const competitiveEdge = `Most tools only handle one piece of the job. ${title} owns the whole flow end to end. That means a better experience, faster results, and a moat that grows as more people use it.`;
+
+  return { problem, solution, market, businessModel, competitiveEdge, targetAudience: audience };
 }
 
 export async function validateIdea(idea: Idea): Promise<IdeaValidationResult> {
