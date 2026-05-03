@@ -193,7 +193,7 @@ router.post("/sessions", async (req: Request, res: Response): Promise<void> => {
     },
   ]);
 
-  const openingAudioBuffer = await generateInvestorAudio(openingQuestion).catch(() => null);
+  const openingAudioBuffer = await generateInvestorAudio(openingQuestion, persona.slug).catch(() => null);
   const openingAudio = openingAudioBuffer ? openingAudioBuffer.toString("base64") : "";
 
   const detail = await loadSessionDetail(session.id, userId);
@@ -325,7 +325,7 @@ router.post("/sessions/:id/messages", async (req: Request, res: Response): Promi
       content: readiness.closingMessage,
     });
     await finishSessionById(session.id);
-    const closingAudioBuffer = await generateInvestorAudio(readiness.closingMessage, body.data.language).catch(() => null);
+    const closingAudioBuffer = await generateInvestorAudio(readiness.closingMessage, session.personaSlug, body.data.language).catch(() => null);
     const closingAudioB64 = closingAudioBuffer ? closingAudioBuffer.toString("base64") : "";
     const detail = await loadSessionDetail(session.id, userId);
     res.json({ ...detail!, investorAudio: closingAudioB64, autoFinished: true });
@@ -345,7 +345,7 @@ router.post("/sessions/:id/messages", async (req: Request, res: Response): Promi
     content: investorReply,
   });
 
-  const audioBuffer = await generateInvestorAudio(investorReply, body.data.language).catch(() => null);
+  const audioBuffer = await generateInvestorAudio(investorReply, session.personaSlug, body.data.language).catch(() => null);
   const investorAudioB64 = audioBuffer ? audioBuffer.toString("base64") : "";
 
   const detail = await loadSessionDetail(session.id, userId);
@@ -449,7 +449,7 @@ router.post("/sessions/:id/voice-messages", async (req: Request, res: Response):
       content: readiness.closingMessage,
     });
     await finishSessionById(session.id);
-    const closingAudioBuffer = await generateInvestorAudio(readiness.closingMessage, body.data.language).catch(() => null);
+    const closingAudioBuffer = await generateInvestorAudio(readiness.closingMessage, session.personaSlug, body.data.language).catch(() => null);
     const closingAudioB64 = closingAudioBuffer ? closingAudioBuffer.toString("base64") : "";
     const detail = await loadSessionDetail(session.id, userId);
     res.json({ ...detail!, transcript, investorAudio: closingAudioB64, autoFinished: true });
@@ -469,7 +469,7 @@ router.post("/sessions/:id/voice-messages", async (req: Request, res: Response):
     content: investorReply,
   });
 
-  const ab = await generateInvestorAudio(investorReply, body.data.language).catch(() => null);
+  const ab = await generateInvestorAudio(investorReply, session.personaSlug, body.data.language).catch(() => null);
   const investorAudioB64 = ab ? ab.toString("base64") : "";
 
   const detail = await loadSessionDetail(session.id, userId);

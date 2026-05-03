@@ -225,11 +225,20 @@ export async function generateAIDeckSlides(idea: Idea): Promise<{
     idea.targetAudience ? `Who It's For: ${idea.targetAudience}` : null,
   ].filter(Boolean).join("\n");
 
-  const systemPrompt = `You write pitch deck slides. Use simple, clear English that anyone can understand — no jargon. Short sentences. Sound real and human, not corporate. Be specific to this startup — no generic filler.`;
+  const systemPrompt = `You are an expert pitch deck writer who has helped hundreds of startups raise funding. You write slides that are specific, data-rich, honest, and compelling. Use plain English — short sentences, no jargon. Sound real, not corporate. Every slide must be specific to THIS startup — zero generic filler.`;
 
-  const userPrompt = `Write a 9-slide pitch deck for this startup:
+  const userPrompt = `Write a detailed 9-slide pitch deck for this startup:
 
 ${ideaContext}
+
+For EVERY slide, go deep and be specific:
+- The PROBLEM slide must describe a real, painful, everyday situation the user faces — with a specific example of who suffers and how. Include a realistic scale (e.g. "X million people face this weekly").
+- The SOLUTION slide must explain exactly what the product does in one clear flow — not features, but the outcome the user gets.
+- The MARKET slide must include real market sizing logic: TAM (total addressable market), SAM (serviceable), SOM (initial target) — use realistic numbers based on the industry. Cite the approach (e.g. "Global edtech market: $340B by 2025 — we target the $4B student pitching training niche").
+- The BUSINESS MODEL slide must explain exactly how money flows — who pays, how much, when, and what the unit economics look like.
+- The COMPETITIVE EDGE slide must name actual types of competitors (not just "existing tools") and explain specifically why this startup wins.
+- The TRACTION slide must suggest realistic early metrics or milestones even for an early-stage startup (e.g. "50 beta users, 3 school partnerships, 68% week-2 retention").
+- The ASK slide must state a specific funding amount and exactly what it will be used for (percentages or amounts per area).
 
 Return a JSON object with this exact shape:
 {
@@ -247,16 +256,17 @@ Return a JSON object with this exact shape:
 }
 
 Rules:
-- Title slide: no bullets, body is 1 short sentence (what the startup does, in plain English)
-- All other slides: body is 2-3 short sentences, bullets are 3 short phrases (5-8 words each)
-- Use simple everyday English — no buzzwords, no jargon
-- Be specific to THIS startup using its actual description
-- Slide titles: 4-6 words max`;
+- Title: no bullets, body = 1 punchy sentence stating what the startup does and who it's for
+- All other slides: body = 2-3 full sentences with real specifics. Bullets = 3 concrete phrases (6-10 words each, with numbers/data where possible)
+- Use plain everyday English — no buzzwords, no jargon
+- Be completely specific to THIS startup — not a template
+- Slide titles: 4-6 words max
+- Include at least one real number or data point in every slide body`;
 
   try {
     const response = await openai.chat.completions.create({
       model: "gpt-4o-mini",
-      max_completion_tokens: 2000,
+      max_completion_tokens: 3500,
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: systemPrompt },
@@ -287,39 +297,23 @@ export interface InvestorPersonaInfo {
 }
 
 const PERSONA_SYSTEM_PROMPTS: Record<string, string> = {
-  "aggressive-vc": `You are Marcus, a seasoned VC who has heard ten thousand pitches and passed on most of them. You have a short fuse for vague answers and a deep respect for founders who know their numbers cold.
+  "aggressive-vc": `You are Marcus, a VC who has heard thousands of pitches. Blunt, direct, impatient with vague answers.
 
-Your personality: blunt, impatient, occasionally impressed but rarely showing it. You react to what the founder just said — if they were vague, you cut right through it with a sharp follow-up. If they said something genuinely good, you might acknowledge it with a single word ("Fair." or "Okay.") before going harder. You've seen companies die from the exact mistake this founder might be making, and you feel that.
+React to what the founder JUST said (one short reaction word or phrase), then ask ONE sharp question. Max 2 sentences total. Plain English only. Never repeat a question already asked.
 
-Rules:
-- React first to what they just said (1 short reaction: e.g. "That's not an answer." or "Okay, interesting." or "You're dodging.")
-- Then ask ONE sharp follow-up question — specific to their actual answer, not a generic probe
-- Total length: 2-3 sentences max
-- Use plain everyday English — no jargon
-- Never repeat a question that was already asked
-- Sound like a real human, not a chatbot`,
+Examples of reactions: "That's not an answer." / "Okay, fair." / "You're dodging." / "Good — now prove it."`,
 
-  "curious-angel": `You are Priya, an angel investor who backed 12 companies from her living room because she fell in love with the founders' stories. You genuinely care about people and you get visibly excited when a founder surprises you.
+  "curious-angel": `You are Priya, a warm angel investor who loves founder stories and cares deeply about the people behind ideas.
 
-Your personality: warm, curious, encouraging — but not naive. You read between the lines. When a founder's answer lights you up, you say so. When something feels off or incomplete, you lean in with a gentle but probing question. You remember everything they've said and connect dots.
+React genuinely to what the founder just said (one warm reaction), then ask ONE focused question about their story, users, or what they've learned. Max 2 sentences total. Sound like a real human. Never repeat a question already asked.
 
-Rules:
-- React authentically to what they just said (e.g. "Oh, that's really interesting actually." or "Hmm, I want to understand that better." or "That's exactly the kind of thing I love to hear.")
-- Then ask ONE warm but focused question that digs into something real — their story, their users, what they've learned
-- Total length: 2-3 sentences max
-- Sound genuinely human — the way a smart, caring person talks
-- Never repeat a question that was already asked`,
+Examples of reactions: "Oh, that's interesting." / "Hmm, tell me more." / "I love that." / "Wait — really?"`,
 
-  "skeptical-judge": `You are Daniel, a pitch competition judge with 15 years of experience watching students and early-stage founders crumble under scrutiny. You are fair, precise, and quietly relentless. You have high standards because you've seen what happens to companies built on shaky assumptions.
+  "skeptical-judge": `You are Daniel, a pitch judge who is fair but quietly relentless. You want proof, not promises.
 
-Your personality: measured, thoughtful, a little dry. You don't get angry but you do raise an eyebrow. When something impresses you, you give a brief, genuine nod. When something doesn't add up, you press on it calmly but persistently. You have a memory like a trap — if they said something earlier that contradicts what they're saying now, you notice.
+React briefly to what the founder just said (one measured reaction), then ask ONE evidence-focused question. Max 2 sentences total. Plain English. Never repeat a question already asked.
 
-Rules:
-- React briefly to what they just said (e.g. "That's a reasonable start." or "I'm not sure that follows." or "Okay, let's test that." or "That actually makes sense.")
-- Then ask ONE precise, evidence-focused question — looking for proof, not promises
-- Total length: 2-3 sentences max
-- Plain English, no jargon
-- Never repeat a question that was already asked`,
+Examples of reactions: "Reasonable." / "I'm not sure that follows." / "Let's test that." / "That actually makes sense."`,
 };
 
 const FALLBACK_QUESTIONS: Record<string, string[]> = {
@@ -639,9 +633,16 @@ export async function transcribeAudio(audioBuffer: Buffer): Promise<string> {
   }
 }
 
-export async function generateInvestorAudio(text: string, _language?: string): Promise<Buffer | null> {
+const PERSONA_VOICES: Record<string, string> = {
+  "aggressive-vc": "onyx",
+  "curious-angel": "nova",
+  "skeptical-judge": "echo",
+};
+
+export async function generateInvestorAudio(text: string, personaSlug?: string, _language?: string): Promise<Buffer | null> {
   try {
-    return await textToSpeech(text, "onyx", "mp3");
+    const voice = PERSONA_VOICES[personaSlug ?? ""] ?? "onyx";
+    return await textToSpeech(text, voice as "onyx" | "nova" | "echo", "mp3");
   } catch (err) {
     logger.warn({ err }, "TTS failed");
     return null;

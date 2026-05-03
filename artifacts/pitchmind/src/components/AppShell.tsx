@@ -98,7 +98,6 @@ export function AppShell({ children }: { children: ReactNode }) {
                       ? "bg-sidebar-primary text-sidebar-primary-foreground font-medium"
                       : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                   }`}
-                  data-testid={`nav-${item.href.slice(1)}`}
                 >
                   <Icon className="h-4 w-4" />
                   {item.label}
@@ -172,28 +171,6 @@ export function AppShell({ children }: { children: ReactNode }) {
         <main className="flex-1 min-w-0 overflow-x-hidden">
           {children}
         </main>
-
-        {/* ── Mobile bottom nav ── */}
-        <nav className="md:hidden shrink-0 flex items-stretch border-t border-border bg-card safe-bottom">
-          {NAV.map((item) => {
-            const active = item.match(location);
-            const Icon = item.icon;
-            return (
-              <Link key={item.href} href={item.href}>
-                <a
-                  className={`flex-1 flex flex-col items-center justify-center gap-1 py-2.5 px-1 text-[10px] font-mono uppercase tracking-wider transition-colors min-w-0 ${
-                    active
-                      ? "text-primary"
-                      : "text-muted-foreground"
-                  }`}
-                >
-                  <Icon className={`h-5 w-5 ${active ? "text-primary" : ""}`} />
-                  <span className="truncate">{item.label}</span>
-                </a>
-              </Link>
-            );
-          })}
-        </nav>
       </div>
     </div>
   );

@@ -14,15 +14,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Flame, Mic, ArrowRight, Lightbulb } from "lucide-react";
-import { motion } from "framer-motion";
+import { Textarea } from "@/components/ui/textarea";
+import { Flame, Mic, ArrowRight, Lightbulb, ChevronDown, ChevronUp, FileText } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
 
 export default function TrainNewPage() {
   const ideas = useListIdeas({ query: { queryKey: getListIdeasQueryKey() } });
-  const personas = useListPersonas({
-    query: { queryKey: getListPersonasQueryKey() },
-  });
+  const personas = useListPersonas({ query: { queryKey: getListPersonasQueryKey() } });
   const [location, setLocation] = useLocation();
   const qc = useQueryClient();
   const { toast } = useToast();
@@ -34,11 +33,11 @@ export default function TrainNewPage() {
 
   const [ideaId, setIdeaId] = useState<string>(initialIdeaId);
   const [personaSlug, setPersonaSlug] = useState<string>("");
+  const [ownDeck, setOwnDeck] = useState("");
+  const [showDeck, setShowDeck] = useState(false);
 
   useEffect(() => {
-    if (!ideaId && (ideas.data ?? []).length > 0) {
-      setIdeaId(ideas.data![0]!.id);
-    }
+    if (!ideaId && (ideas.data ?? []).length > 0) setIdeaId(ideas.data![0]!.id);
   }, [ideaId, ideas.data]);
 
   const start = useStartSession({
@@ -47,129 +46,132 @@ export default function TrainNewPage() {
         qc.invalidateQueries({ queryKey: getListSessionsQueryKey() });
         setLocation(`/train/${s.id}`);
       },
-      onError: () =>
-        toast({
-          title: "Could not start session",
-          variant: "destructive",
-        }),
+      onError: () => toast({ title: "Could not start session", variant: "destructive" }),
     },
   });
+
+  const canStart = !!ideaId && !!personaSlug && !start.isPending;
 
   return (
     <PageContainer>
       <PageHeader
-        eyebrow={
-          <>
-            <Mic className="h-3.5 w-3.5" /> New session setup
-          </>
-        }
-        title="Step into the arena."
-        description="Pick the idea you'll defend. Pick the investor who'll push back."
+        eyebrow={<><Mic className="h-3.5 w-3.5" /> New session</>}
+        title="Set up your session"
+        description="Choose an idea and an investor, then start pitching."
       />
 
-      <div className="grid lg:grid-cols-2 gap-6">
+      <div className="grid lg:grid-cols-2 gap-5">
+        {/* Step 1 — Idea */}
         <Card>
-          <CardContent className="p-6">
-            <div className="font-mono text-xs uppercase tracking-widest text-primary">
-              01 — The idea
-            </div>
-            <h2 className="font-display text-xl font-semibold mt-1">
-              Which one are you pitching?
-            </h2>
+          <CardContent className="p-5">
+            <p className="font-mono text-[10px] uppercase tracking-widest text-primary mb-1">01 — Your idea</p>
+            <h2 className="font-semibold text-base mb-4">Which idea are you pitching?</h2>
             {ideas.isLoading ? (
-              <div className="mt-4 space-y-2">
-                {[...Array(3)].map((_, i) => (
-                  <Skeleton key={i} className="h-14 rounded-md" />
-                ))}
-              </div>
+              <div className="space-y-2">{[...Array(3)].map((_, i) => <Skeleton key={i} className="h-14 rounded-lg" />)}</div>
             ) : (ideas.data ?? []).length === 0 ? (
-              <div className="mt-6 p-5 rounded-lg border border-dashed border-border text-center">
-                <Lightbulb className="h-5 w-5 text-muted-foreground mx-auto" />
-                <p className="mt-2 font-medium">No ideas to pitch yet.</p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Create an idea first — even a draft is enough to start training.
-                </p>
-                <Button
-                  size="sm"
-                  className="mt-4"
-                  onClick={() => setLocation("/ideas")}
-                >
-                  Create an idea
-                </Button>
+              <div className="p-5 rounded-xl border border-dashed text-center">
+                <Lightbulb className="h-5 w-5 text-muted-foreground mx-auto mb-2" />
+                <p className="font-medium text-sm">No ideas yet</p>
+                <p className="text-xs text-muted-foreground mt-1 mb-3">Create an idea first — even a rough one works.</p>
+                <Button size="sm" onClick={() => setLocation("/ideas")}>Create an idea</Button>
               </div>
             ) : (
-              <div className="mt-4 space-y-2 max-h-[400px] overflow-y-auto pr-1">
-                {ideas.data!.map((i) => (
+              <div className="space-y-2 max-h-[380px] overflow-y-auto pr-0.5">
+                {ideas.data!.map((idea) => (
                   <button
-                    key={i.id}
-                    onClick={() => setIdeaId(i.id)}
-                    className={`w-full text-left p-3 rounded-md border transition-colors ${
-                      ideaId === i.id
-                        ? "border-primary bg-primary/5"
+                    key={idea.id}
+                    onClick={() => setIdeaId(idea.id)}
+                    className={`w-full text-left p-3 rounded-lg border transition-all ${
+                      ideaId === idea.id
+                        ? "border-primary bg-primary/5 ring-1 ring-primary/20"
                         : "border-border hover:border-foreground/20"
                     }`}
-                    data-testid={`pick-idea-${i.id}`}
                   >
-                    <div className="font-medium truncate">{i.title}</div>
-                    <div className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
-                      {i.problem ?? i.rawText}
-                    </div>
+                    <p className="font-medium text-sm truncate">{idea.title}</p>
+                    <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
+                      {idea.problem ?? idea.rawText}
+                    </p>
                   </button>
                 ))}
               </div>
             )}
+
+            {/* Own deck toggle */}
+            <div className="mt-4 border-t border-border pt-4">
+              <button
+                onClick={() => setShowDeck((v) => !v)}
+                className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors w-full"
+              >
+                <FileText className="h-4 w-4 shrink-0" />
+                <span className="flex-1 text-left">Paste your own pitch deck (optional)</span>
+                {showDeck ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </button>
+              <AnimatePresence>
+                {showDeck && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="mt-3 space-y-2">
+                      <p className="text-xs text-muted-foreground">
+                        Paste your slide content or any text from your deck. The AI investor will use it to ask you better, more targeted questions.
+                      </p>
+                      <Textarea
+                        value={ownDeck}
+                        onChange={(e) => setOwnDeck(e.target.value)}
+                        placeholder="Paste your pitch deck text here — slide titles, bullet points, key numbers, anything…"
+                        rows={5}
+                        className="text-sm resize-none"
+                      />
+                      {ownDeck.length > 0 && (
+                        <p className="text-xs text-muted-foreground text-right">
+                          {ownDeck.trim().split(/\s+/).filter(Boolean).length} words
+                        </p>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </CardContent>
         </Card>
 
+        {/* Step 2 — Investor */}
         <Card>
-          <CardContent className="p-6">
-            <div className="font-mono text-xs uppercase tracking-widest text-primary">
-              02 — The investor
-            </div>
-            <h2 className="font-display text-xl font-semibold mt-1">
-              Who's grilling you today?
-            </h2>
+          <CardContent className="p-5">
+            <p className="font-mono text-[10px] uppercase tracking-widest text-primary mb-1">02 — The investor</p>
+            <h2 className="font-semibold text-base mb-4">Who's grilling you today?</h2>
             {personas.isLoading ? (
-              <div className="mt-4 space-y-2">
-                {[...Array(3)].map((_, i) => (
-                  <Skeleton key={i} className="h-20 rounded-md" />
-                ))}
-              </div>
+              <div className="space-y-2">{[...Array(3)].map((_, i) => <Skeleton key={i} className="h-20 rounded-lg" />)}</div>
             ) : (
-              <div className="mt-4 space-y-2">
+              <div className="space-y-2">
                 {(personas.data ?? []).map((p) => (
                   <button
                     key={p.id}
                     onClick={() => setPersonaSlug(p.slug)}
-                    className={`w-full text-left p-4 rounded-md border transition-colors ${
+                    className={`w-full text-left p-4 rounded-lg border transition-all ${
                       personaSlug === p.slug
-                        ? "border-primary bg-primary/5"
+                        ? "border-primary bg-primary/5 ring-1 ring-primary/20"
                         : "border-border hover:border-foreground/20"
                     }`}
-                    data-testid={`pick-persona-${p.slug}`}
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="font-medium">{p.name}</div>
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="font-semibold text-sm">{p.name}</p>
                       <Badge
                         variant="outline"
                         className={`font-mono text-[10px] ${
-                          p.intensity === "hard"
-                            ? "border-destructive text-destructive"
-                            : p.intensity === "easy"
-                              ? "border-emerald-500 text-emerald-600"
-                              : "border-primary text-primary"
+                          p.intensity === "hard" ? "border-destructive text-destructive"
+                            : p.intensity === "easy" ? "border-emerald-500 text-emerald-600"
+                            : "border-primary text-primary"
                         }`}
                       >
-                        <Flame className="h-3 w-3 mr-1" />
-                        {p.intensity.toUpperCase()}
+                        <Flame className="h-2.5 w-2.5 mr-1" />{p.intensity.toUpperCase()}
                       </Badge>
                     </div>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {p.description}
-                    </p>
-                    <p className="text-xs text-muted-foreground italic mt-2">
-                      {p.style}
-                    </p>
+                    <p className="text-xs text-muted-foreground">{p.description}</p>
+                    <p className="text-xs text-muted-foreground/70 italic mt-1">&ldquo;{p.style}&rdquo;</p>
                   </button>
                 ))}
               </div>
@@ -178,27 +180,33 @@ export default function TrainNewPage() {
         </Card>
       </div>
 
+      {/* Start */}
       <motion.div
-        initial={{ opacity: 0, y: 12 }}
+        initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="mt-8 flex items-center justify-between p-6 rounded-xl border border-border bg-secondary text-secondary-foreground"
+        className="mt-6 flex items-center justify-between gap-4 p-5 rounded-xl border border-border bg-secondary text-secondary-foreground flex-wrap"
       >
         <div>
-          <div className="font-mono text-xs uppercase tracking-widest text-primary">
-            Ready check
-          </div>
-          <p className="text-secondary-foreground/80 text-sm mt-1">
-            Take a breath. Open with your strongest sentence.
+          <p className="font-semibold text-sm">Ready?</p>
+          <p className="text-secondary-foreground/70 text-xs mt-0.5">
+            {!ideaId ? "Pick an idea above first." : !personaSlug ? "Pick an investor above." : "Take a breath. Start with your strongest sentence."}
           </p>
         </div>
         <Button
           size="lg"
-          disabled={!ideaId || !personaSlug || start.isPending}
-          onClick={() => start.mutate({ data: { ideaId, personaSlug } })}
-          data-testid="start-session-button"
+          disabled={!canStart}
+          onClick={() =>
+            start.mutate({
+              data: {
+                ideaId,
+                personaSlug,
+                ownDeckContent: ownDeck.trim() || undefined,
+              },
+            })
+          }
         >
-          {start.isPending ? "Starting..." : "Start session"}
+          {start.isPending ? "Starting…" : "Start session"}
           <ArrowRight className="h-4 w-4 ml-2" />
         </Button>
       </motion.div>
