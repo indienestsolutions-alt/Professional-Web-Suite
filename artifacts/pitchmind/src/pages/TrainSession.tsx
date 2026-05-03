@@ -92,16 +92,36 @@ export default function TrainSessionPage({ id }: { id: string }) {
     }
   }, [sessionQ.data?.messages?.length]);
 
+  // Unlock the audio element with a silent play on first user interaction
+  // so that subsequent async-triggered plays work despite browser autoplay policy
+  const audioUnlockedRef = useRef(false);
+  const unlockAudio = useCallback(() => {
+    if (audioUnlockedRef.current || !audioPlayerRef.current) return;
+    audioPlayerRef.current.src =
+      "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=";
+    audioPlayerRef.current.play().then(() => {
+      audioPlayerRef.current?.pause();
+      audioUnlockedRef.current = true;
+    }).catch(() => {});
+  }, []);
+
   const playAudio = useCallback((base64: string) => {
     if (!voiceEnabled || !base64) return;
     try {
       const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
       const url = URL.createObjectURL(new Blob([bytes], { type: "audio/mpeg" }));
-      if (audioPlayerRef.current) {
-        audioPlayerRef.current.pause();
-        audioPlayerRef.current.src = url;
-        audioPlayerRef.current.play().catch(() => {});
-      }
+      const el = audioPlayerRef.current;
+      if (!el) return;
+      el.pause();
+      el.src = url;
+      const tryPlay = () =>
+        el.play().catch((err) => {
+          // If autoplay blocked, wait briefly and retry once
+          if ((err as DOMException).name === "NotAllowedError") {
+            setTimeout(() => el.play().catch(() => {}), 300);
+          }
+        });
+      tryPlay();
     } catch {}
   }, [voiceEnabled]);
 
@@ -181,6 +201,7 @@ export default function TrainSessionPage({ id }: { id: string }) {
   }, [sendVoiceBlob]);
 
   const startRecording = useCallback(async () => {
+    unlockAudio(); // unlock within the user gesture, before any async work
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mimeType = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"].find(
@@ -206,13 +227,13 @@ export default function TrainSessionPage({ id }: { id: string }) {
         if (!mediaRecorderRef.current || mediaRecorderRef.current.state !== "recording") return;
         analyser.getByteTimeDomainData(data);
         const rms = Math.sqrt(data.reduce((s, v) => s + (v - 128) ** 2, 0) / data.length);
-        if (rms < 4) {
+        if (rms < 6) {
           if (!silenceTimerRef.current) {
             silenceTimerRef.current = setTimeout(() => {
               silenceTimerRef.current = null;
               stopRecording();
               ctx.close();
-            }, 1800);
+            }, 2500);
           }
         } else {
           if (silenceTimerRef.current) {
@@ -385,7 +406,7 @@ export default function TrainSessionPage({ id }: { id: string }) {
                     {isRecording ? "Listening… tap to stop" : isSendingVoice ? "Processing…" : "Tap to speak"}
                   </p>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    {isRecording ? "Auto-sends after 2 seconds of silence" : "Auto-sends when you stop talking"}
+                    {isRecording ? "Auto-sends after 2.5 seconds of silence" : "Auto-sends when you stop talking"}
                   </p>
                 </div>
 

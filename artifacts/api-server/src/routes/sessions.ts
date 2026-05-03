@@ -174,11 +174,14 @@ router.post("/sessions", async (req: Request, res: Response): Promise<void> => {
     })
     .returning();
 
-  const openingQuestion = await pickAIInvestorQuestion(
-    persona.slug,
-    idea,
-    [],
-  );
+  // Generate opening question and audio in parallel
+  const [openingQuestion] = await Promise.all([
+    pickAIInvestorQuestion(persona.slug, idea, []),
+  ]);
+
+  const [openingAudioBuffer] = await Promise.all([
+    generateInvestorAudio(openingQuestion, persona.slug).catch(() => null),
+  ]);
 
   await db.insert(sessionMessagesTable).values([
     {
@@ -193,7 +196,6 @@ router.post("/sessions", async (req: Request, res: Response): Promise<void> => {
     },
   ]);
 
-  const openingAudioBuffer = await generateInvestorAudio(openingQuestion, persona.slug).catch(() => null);
   const openingAudio = openingAudioBuffer ? openingAudioBuffer.toString("base64") : "";
 
   const detail = await loadSessionDetail(session.id, userId);
@@ -271,18 +273,24 @@ router.post("/sessions/:id/messages", async (req: Request, res: Response): Promi
     return;
   }
 
-  const prevMessages = await db
-    .select()
-    .from(sessionMessagesTable)
-    .where(eq(sessionMessagesTable.sessionId, session.id))
-    .orderBy(asc(sessionMessagesTable.createdAt));
+  // Load prev messages + idea in parallel
+  const [prevMessages, idea] = await Promise.all([
+    db
+      .select()
+      .from(sessionMessagesTable)
+      .where(eq(sessionMessagesTable.sessionId, session.id))
+      .orderBy(asc(sessionMessagesTable.createdAt)),
+    db.select().from(ideasTable).where(eq(ideasTable.id, session.ideaId)).then((r) => r[0]),
+  ]);
 
   const lastInvestorQuestion = prevMessages
     .filter((m) => m.role === "investor")
     .at(-1)?.content;
 
+  // Score the founder's turn
   const score = await scoreAndCoachTurn(body.data.content, lastInvestorQuestion);
 
+  // Save the user's message
   await db.insert(sessionMessagesTable).values({
     sessionId: session.id,
     role: "user",
@@ -293,29 +301,38 @@ router.post("/sessions/:id/messages", async (req: Request, res: Response): Promi
     fillerWords: score.fillerWords,
   });
 
+  // Load updated messages for conversation history
   const allMessages = await db
     .select()
     .from(sessionMessagesTable)
     .where(eq(sessionMessagesTable.sessionId, session.id))
     .orderBy(asc(sessionMessagesTable.createdAt));
 
-  const [idea] = await db.select().from(ideasTable).where(eq(ideasTable.id, session.ideaId));
-
   const conversationHistory = allMessages
     .filter((m) => m.role === "user" || m.role === "investor")
     .map((m) => ({ role: m.role as "user" | "investor", content: m.content }));
 
   const allUserTurns = allMessages.filter((m) => m.role === "user");
-  const readiness = await assessInvestorReadiness(
-    allUserTurns.map((m) => ({
-      content: m.content,
-      confidence: m.confidence,
-      clarity: m.clarity,
-      fillerWords: m.fillerWords,
-    })),
-    conversationHistory,
-    session.personaSlug,
-  );
+
+  // Run readiness check and next investor question IN PARALLEL
+  const [readiness, investorReply] = await Promise.all([
+    assessInvestorReadiness(
+      allUserTurns.map((m) => ({
+        content: m.content,
+        confidence: m.confidence,
+        clarity: m.clarity,
+        fillerWords: m.fillerWords,
+      })),
+      conversationHistory,
+      session.personaSlug,
+    ),
+    pickAIInvestorQuestion(
+      session.personaSlug,
+      idea,
+      conversationHistory,
+      body.data.language,
+    ),
+  ]);
 
   if (readiness.ready && readiness.closingMessage) {
     logger.info({ sessionId: session.id }, "AI declared founder ready — auto-finishing session");
@@ -325,30 +342,29 @@ router.post("/sessions/:id/messages", async (req: Request, res: Response): Promi
       content: readiness.closingMessage,
     });
     await finishSessionById(session.id);
-    const closingAudioBuffer = await generateInvestorAudio(readiness.closingMessage, session.personaSlug, body.data.language).catch(() => null);
+    const [closingAudioBuffer, detail] = await Promise.all([
+      generateInvestorAudio(readiness.closingMessage, session.personaSlug, body.data.language).catch(() => null),
+      loadSessionDetail(session.id, userId),
+    ]);
     const closingAudioB64 = closingAudioBuffer ? closingAudioBuffer.toString("base64") : "";
-    const detail = await loadSessionDetail(session.id, userId);
     res.json({ ...detail!, investorAudio: closingAudioB64, autoFinished: true });
     return;
   }
 
-  const investorReply = await pickAIInvestorQuestion(
-    session.personaSlug,
-    idea,
-    conversationHistory,
-    body.data.language,
-  );
-
+  // Save investor reply then generate audio + load detail in parallel
   await db.insert(sessionMessagesTable).values({
     sessionId: session.id,
     role: "investor",
     content: investorReply,
   });
 
-  const audioBuffer = await generateInvestorAudio(investorReply, session.personaSlug, body.data.language).catch(() => null);
+  const [audioBuffer, detail] = await Promise.all([
+    generateInvestorAudio(investorReply, session.personaSlug, body.data.language).catch(() => null),
+    loadSessionDetail(session.id, userId),
+  ]);
+
   const investorAudioB64 = audioBuffer ? audioBuffer.toString("base64") : "";
 
-  const detail = await loadSessionDetail(session.id, userId);
   res.json({
     ...detail!,
     investorAudio: investorAudioB64,
@@ -388,25 +404,31 @@ router.post("/sessions/:id/voice-messages", async (req: Request, res: Response):
   }
 
   const audioBuffer = Buffer.from(body.data.audio, "base64");
-  const transcript = await transcribeAudio(audioBuffer);
+
+  // Transcribe audio + load prev messages + idea in parallel
+  const [transcript, prevMessages, idea] = await Promise.all([
+    transcribeAudio(audioBuffer),
+    db
+      .select()
+      .from(sessionMessagesTable)
+      .where(eq(sessionMessagesTable.sessionId, session.id))
+      .orderBy(asc(sessionMessagesTable.createdAt)),
+    db.select().from(ideasTable).where(eq(ideasTable.id, session.ideaId)).then((r) => r[0]),
+  ]);
 
   if (!transcript || transcript.trim().length === 0) {
     res.status(400).json({ error: "Could not hear you clearly. Please try again and speak into your microphone." });
     return;
   }
 
-  const prevMessages = await db
-    .select()
-    .from(sessionMessagesTable)
-    .where(eq(sessionMessagesTable.sessionId, session.id))
-    .orderBy(asc(sessionMessagesTable.createdAt));
-
   const lastInvestorQuestion = prevMessages
     .filter((m) => m.role === "investor")
     .at(-1)?.content;
 
+  // Score the turn
   const score = await scoreAndCoachTurn(transcript, lastInvestorQuestion);
 
+  // Save the user's message
   await db.insert(sessionMessagesTable).values({
     sessionId: session.id,
     role: "user",
@@ -417,29 +439,38 @@ router.post("/sessions/:id/voice-messages", async (req: Request, res: Response):
     fillerWords: score.fillerWords,
   });
 
+  // Load updated messages
   const allMessages = await db
     .select()
     .from(sessionMessagesTable)
     .where(eq(sessionMessagesTable.sessionId, session.id))
     .orderBy(asc(sessionMessagesTable.createdAt));
 
-  const [idea] = await db.select().from(ideasTable).where(eq(ideasTable.id, session.ideaId));
-
   const conversationHistory = allMessages
     .filter((m) => m.role === "user" || m.role === "investor")
     .map((m) => ({ role: m.role as "user" | "investor", content: m.content }));
 
   const allUserTurns = allMessages.filter((m) => m.role === "user");
-  const readiness = await assessInvestorReadiness(
-    allUserTurns.map((m) => ({
-      content: m.content,
-      confidence: m.confidence,
-      clarity: m.clarity,
-      fillerWords: m.fillerWords,
-    })),
-    conversationHistory,
-    session.personaSlug,
-  );
+
+  // Run readiness check and next investor question IN PARALLEL
+  const [readiness, investorReply] = await Promise.all([
+    assessInvestorReadiness(
+      allUserTurns.map((m) => ({
+        content: m.content,
+        confidence: m.confidence,
+        clarity: m.clarity,
+        fillerWords: m.fillerWords,
+      })),
+      conversationHistory,
+      session.personaSlug,
+    ),
+    pickAIInvestorQuestion(
+      session.personaSlug,
+      idea,
+      conversationHistory,
+      body.data.language,
+    ),
+  ]);
 
   if (readiness.ready && readiness.closingMessage) {
     logger.info({ sessionId: session.id }, "AI declared founder ready — auto-finishing session");
@@ -449,19 +480,14 @@ router.post("/sessions/:id/voice-messages", async (req: Request, res: Response):
       content: readiness.closingMessage,
     });
     await finishSessionById(session.id);
-    const closingAudioBuffer = await generateInvestorAudio(readiness.closingMessage, session.personaSlug, body.data.language).catch(() => null);
+    const [closingAudioBuffer, detail] = await Promise.all([
+      generateInvestorAudio(readiness.closingMessage, session.personaSlug, body.data.language).catch(() => null),
+      loadSessionDetail(session.id, userId),
+    ]);
     const closingAudioB64 = closingAudioBuffer ? closingAudioBuffer.toString("base64") : "";
-    const detail = await loadSessionDetail(session.id, userId);
     res.json({ ...detail!, transcript, investorAudio: closingAudioB64, autoFinished: true });
     return;
   }
-
-  const investorReply = await pickAIInvestorQuestion(
-    session.personaSlug,
-    idea,
-    conversationHistory,
-    body.data.language,
-  );
 
   await db.insert(sessionMessagesTable).values({
     sessionId: session.id,
@@ -469,10 +495,12 @@ router.post("/sessions/:id/voice-messages", async (req: Request, res: Response):
     content: investorReply,
   });
 
-  const ab = await generateInvestorAudio(investorReply, session.personaSlug, body.data.language).catch(() => null);
+  const [ab, detail] = await Promise.all([
+    generateInvestorAudio(investorReply, session.personaSlug, body.data.language).catch(() => null),
+    loadSessionDetail(session.id, userId),
+  ]);
   const investorAudioB64 = ab ? ab.toString("base64") : "";
 
-  const detail = await loadSessionDetail(session.id, userId);
   res.json({
     ...detail!,
     transcript,
