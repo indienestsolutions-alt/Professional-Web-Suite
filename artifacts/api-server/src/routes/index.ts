@@ -7,6 +7,7 @@ import personasRouter from "./personas";
 import sessionsRouter from "./sessions";
 import learningRouter from "./learning";
 import dashboardRouter from "./dashboard";
+import reviewsRouter from "./reviews";
 
 const router: IRouter = Router();
 
@@ -18,5 +19,6 @@ router.use(personasRouter);
 router.use(sessionsRouter);
 router.use(learningRouter);
 router.use(dashboardRouter);
+router.use(reviewsRouter);
 
 export default router;

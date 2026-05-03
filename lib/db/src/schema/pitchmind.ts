@@ -147,3 +147,24 @@ export const learningTopicsTable = pgTable("learning_topics", {
 
 export type LearningTopic = typeof learningTopicsTable.$inferSelect;
 export type InsertLearningTopic = typeof learningTopicsTable.$inferInsert;
+
+export const reviewsTable = pgTable(
+  "reviews",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    userId: varchar("user_id")
+      .notNull()
+      .references(() => usersTable.id, { onDelete: "cascade" }),
+    sessionId: varchar("session_id"),
+    rating: integer("rating").notNull(),
+    description: text("description").notNull(),
+    displayName: varchar("display_name", { length: 120 }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [index("idx_reviews_user").on(table.userId)],
+);
+
+export type Review = typeof reviewsTable.$inferSelect;
+export type InsertReview = typeof reviewsTable.$inferInsert;

@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
+import { ReviewModal } from "@/components/ReviewModal";
 
 const BASE_URL = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
 
@@ -71,6 +72,7 @@ export default function TrainSessionPage({ id }: { id: string }) {
   const [isSendingText, setIsSendingText] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [silenceTimer, setSilenceTimer] = useState<number | null>(null);
+  const [showReview, setShowReview] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
@@ -91,6 +93,17 @@ export default function TrainSessionPage({ id }: { id: string }) {
       transcriptRef.current.scrollTop = transcriptRef.current.scrollHeight;
     }
   }, [sessionQ.data?.messages?.length]);
+
+  // Show review modal once when session first finishes
+  useEffect(() => {
+    if (sessionQ.data?.status === "finished") {
+      const key = `pm_reviewed_${id}`;
+      if (!localStorage.getItem(key)) {
+        const timer = setTimeout(() => setShowReview(true), 1200);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [sessionQ.data?.status, id]);
 
   // Unlock the audio element with a silent play on first user interaction
   // so that subsequent async-triggered plays work despite browser autoplay policy
@@ -276,6 +289,16 @@ export default function TrainSessionPage({ id }: { id: string }) {
   return (
     <div className="flex flex-col h-dvh overflow-hidden bg-background">
       <audio ref={audioPlayerRef} className="hidden" />
+
+      {showReview && (
+        <ReviewModal
+          sessionId={id}
+          onClose={() => {
+            setShowReview(false);
+            localStorage.setItem(`pm_reviewed_${id}`, "1");
+          }}
+        />
+      )}
 
       {/* ── Header ── */}
       <header className="shrink-0 border-b border-border bg-card px-3 py-2.5 flex items-center gap-2 min-w-0">
