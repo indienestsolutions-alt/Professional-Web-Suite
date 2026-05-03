@@ -1,10 +1,10 @@
 import { useEffect, type ReactNode } from "react";
 import { useLocation } from "wouter";
-import { useUser } from "@clerk/react";
+import { useAuth } from "@clerk/react";
 import { Spinner } from "@/components/ui/spinner";
 
 export function AuthGate({ children }: { children: ReactNode }) {
-  const { isSignedIn, isLoaded } = useUser();
+  const { isSignedIn, isLoaded } = useAuth();
   const [, setLocation] = useLocation();
 
   useEffect(() => {
