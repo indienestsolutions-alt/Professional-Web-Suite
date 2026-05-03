@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
-import { Flame, Mic, ArrowRight, Lightbulb, ChevronDown, ChevronUp, FileText } from "lucide-react";
+import { Flame, Mic, ArrowRight, Lightbulb, Upload, X, ChevronDown, ChevronUp } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
 
@@ -34,7 +34,34 @@ export default function TrainNewPage() {
   const [ideaId, setIdeaId] = useState<string>(initialIdeaId);
   const [personaSlug, setPersonaSlug] = useState<string>("");
   const [ownDeck, setOwnDeck] = useState("");
+  const [ownDeckFileName, setOwnDeckFileName] = useState("");
   const [showDeck, setShowDeck] = useState(false);
+  const [deckMode, setDeckMode] = useState<"upload" | "paste">("upload");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const name = file.name;
+    const ext = name.split(".").pop()?.toLowerCase();
+    if (ext !== "txt" && ext !== "md") {
+      toast({ title: "Unsupported file type", description: "Upload a .txt or .md file, or paste your deck text below.", variant: "destructive" });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const text = ev.target?.result as string;
+      setOwnDeck(text);
+      setOwnDeckFileName(name);
+    };
+    reader.readAsText(file);
+  }
+
+  function clearDeck() {
+    setOwnDeck("");
+    setOwnDeckFileName("");
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
 
   useEffect(() => {
     if (!ideaId && (ideas.data ?? []).length > 0) setIdeaId(ideas.data![0]!.id);
@@ -96,14 +123,16 @@ export default function TrainNewPage() {
               </div>
             )}
 
-            {/* Own deck toggle */}
+            {/* Own deck upload */}
             <div className="mt-4 border-t border-border pt-4">
               <button
                 onClick={() => setShowDeck((v) => !v)}
                 className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors w-full"
               >
-                <FileText className="h-4 w-4 shrink-0" />
-                <span className="flex-1 text-left">Paste your own pitch deck (optional)</span>
+                <Upload className="h-4 w-4 shrink-0" />
+                <span className="flex-1 text-left">
+                  Upload your pitch deck{ownDeck ? " · ✓ loaded" : " (optional)"}
+                </span>
                 {showDeck ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
               </button>
               <AnimatePresence>
@@ -114,21 +143,77 @@ export default function TrainNewPage() {
                     exit={{ height: 0, opacity: 0 }}
                     className="overflow-hidden"
                   >
-                    <div className="mt-3 space-y-2">
+                    <div className="mt-3 space-y-3">
                       <p className="text-xs text-muted-foreground">
-                        Paste your slide content or any text from your deck. The AI investor will use it to ask you better, more targeted questions.
+                        Upload your deck as a text file and the AI investor will ask questions directly tied to your content — not just the idea.
                       </p>
-                      <Textarea
-                        value={ownDeck}
-                        onChange={(e) => setOwnDeck(e.target.value)}
-                        placeholder="Paste your pitch deck text here — slide titles, bullet points, key numbers, anything…"
-                        rows={5}
-                        className="text-sm resize-none"
-                      />
-                      {ownDeck.length > 0 && (
-                        <p className="text-xs text-muted-foreground text-right">
-                          {ownDeck.trim().split(/\s+/).filter(Boolean).length} words
-                        </p>
+
+                      {/* Tab toggle */}
+                      <div className="flex rounded-md overflow-hidden border border-border text-xs font-medium">
+                        <button
+                          onClick={() => setDeckMode("upload")}
+                          className={`flex-1 py-1.5 transition-colors ${deckMode === "upload" ? "bg-foreground text-background" : "hover:bg-muted"}`}
+                        >
+                          Upload file
+                        </button>
+                        <button
+                          onClick={() => setDeckMode("paste")}
+                          className={`flex-1 py-1.5 transition-colors ${deckMode === "paste" ? "bg-foreground text-background" : "hover:bg-muted"}`}
+                        >
+                          Paste text
+                        </button>
+                      </div>
+
+                      {deckMode === "upload" ? (
+                        ownDeckFileName ? (
+                          <div className="flex items-center gap-2 p-3 rounded-lg border border-emerald-200 bg-emerald-50 text-sm">
+                            <Upload className="h-4 w-4 text-emerald-600 shrink-0" />
+                            <span className="flex-1 truncate text-emerald-800 font-medium">{ownDeckFileName}</span>
+                            <span className="text-emerald-600 text-xs">{ownDeck.trim().split(/\s+/).filter(Boolean).length} words</span>
+                            <button onClick={clearDeck} className="text-emerald-600 hover:text-destructive">
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+                        ) : (
+                          <div>
+                            <input
+                              ref={fileInputRef}
+                              type="file"
+                              accept=".txt,.md"
+                              onChange={handleFileUpload}
+                              className="hidden"
+                              id="deck-file-input"
+                            />
+                            <label
+                              htmlFor="deck-file-input"
+                              className="flex flex-col items-center justify-center gap-2 p-6 rounded-lg border-2 border-dashed border-border hover:border-primary/50 hover:bg-primary/5 cursor-pointer transition-colors text-center"
+                            >
+                              <Upload className="h-5 w-5 text-muted-foreground" />
+                              <div>
+                                <p className="text-sm font-medium">Click to upload</p>
+                                <p className="text-xs text-muted-foreground mt-0.5">.txt or .md files supported</p>
+                              </div>
+                            </label>
+                            <p className="text-[11px] text-muted-foreground mt-2 text-center">
+                              Have a PDF? Copy the text from it and use the "Paste text" tab.
+                            </p>
+                          </div>
+                        )
+                      ) : (
+                        <div>
+                          <Textarea
+                            value={ownDeck}
+                            onChange={(e) => { setOwnDeck(e.target.value); setOwnDeckFileName(""); }}
+                            placeholder="Paste your pitch deck content here — slide text, bullet points, key numbers, anything…"
+                            rows={6}
+                            className="text-sm resize-none"
+                          />
+                          {ownDeck.length > 0 && (
+                            <p className="text-xs text-muted-foreground text-right mt-1">
+                              {ownDeck.trim().split(/\s+/).filter(Boolean).length} words
+                            </p>
+                          )}
+                        </div>
                       )}
                     </div>
                   </motion.div>

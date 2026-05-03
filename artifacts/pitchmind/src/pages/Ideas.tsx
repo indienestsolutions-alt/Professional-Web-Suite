@@ -103,26 +103,41 @@ export default function IdeasPage() {
                     id="title"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    placeholder="e.g. Loop — peer mentor matchmaking for college freshmen"
+                    placeholder="e.g. Loop — peer mentor matching for college freshmen"
                     className="mt-1.5"
                     data-testid="input-idea-title"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="raw">The raw idea</Label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <Label htmlFor="raw">Describe your idea</Label>
+                    <span className={`text-xs font-mono ${
+                      rawText.trim().split(/\s+/).filter(Boolean).length >= 150
+                        ? "text-emerald-600"
+                        : "text-muted-foreground"
+                    }`}>
+                      {rawText.trim().split(/\s+/).filter(Boolean).length} / 150 words min
+                    </span>
+                  </div>
                   <Textarea
                     id="raw"
-                    rows={7}
+                    rows={8}
                     value={rawText}
                     onChange={(e) => setRawText(e.target.value)}
-                    placeholder="What's the pain? Who feels it? What does the product actually do? Two paragraphs is plenty."
-                    className="mt-1.5 resize-none"
+                    placeholder={`Describe your idea in detail — minimum 150 words.\n\nCover:\n• What problem does it solve, and who faces it?\n• What exactly does your product do?\n• Who will pay for it and why?\n• What makes you different from existing solutions?\n\nThe more detail you give, the sharper the AI analysis will be.`}
+                    className="mt-0 resize-none"
                     data-testid="input-idea-raw"
                   />
-                  <p className="text-xs text-muted-foreground mt-1.5">
-                    {rawText.length} characters · richer descriptions produce
-                    sharper structuring.
-                  </p>
+                  {rawText.trim().split(/\s+/).filter(Boolean).length < 150 && rawText.length > 10 && (
+                    <p className="text-xs text-amber-600 mt-1.5">
+                      Add {150 - rawText.trim().split(/\s+/).filter(Boolean).length} more words — the AI needs enough detail to give you real feedback.
+                    </p>
+                  )}
+                  {rawText.trim().split(/\s+/).filter(Boolean).length >= 150 && (
+                    <p className="text-xs text-emerald-600 mt-1.5">
+                      ✓ Good detail — the AI can work with this.
+                    </p>
+                  )}
                 </div>
               </div>
               <DialogFooter>
@@ -138,7 +153,7 @@ export default function IdeasPage() {
                   disabled={
                     create.isPending ||
                     title.trim().length === 0 ||
-                    rawText.trim().length === 0
+                    rawText.trim().split(/\s+/).filter(Boolean).length < 150
                   }
                   data-testid="submit-idea"
                 >

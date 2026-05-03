@@ -90,49 +90,90 @@ export function structureIdeaText(title: string, rawText: string): StructuredIde
   return { problem, solution, market, businessModel, competitiveEdge, targetAudience: audience };
 }
 
-export function validateIdea(idea: Idea): IdeaValidationResult {
-  const fields: (keyof Idea)[] = [
-    "problem","solution","market","businessModel","competitiveEdge","targetAudience",
-  ];
+export async function validateIdea(idea: Idea): Promise<IdeaValidationResult> {
+  const ideaContext = [
+    `Startup name: ${idea.title}`,
+    idea.rawText ? `Description: ${idea.rawText}` : null,
+    idea.problem ? `Problem: ${idea.problem}` : null,
+    idea.solution ? `Solution: ${idea.solution}` : null,
+    idea.market ? `Market: ${idea.market}` : null,
+    idea.businessModel ? `Business model: ${idea.businessModel}` : null,
+    idea.competitiveEdge ? `Competitive edge: ${idea.competitiveEdge}` : null,
+    idea.targetAudience ? `Target audience: ${idea.targetAudience}` : null,
+  ].filter(Boolean).join("\n");
 
+  const prompt = `You are a senior investor who has reviewed thousands of startup pitches. Analyse this startup idea honestly and in depth.
+
+STARTUP IDEA:
+${ideaContext}
+
+Evaluate it across these dimensions:
+1. Problem clarity — Is the problem real, specific, and painful? Or vague and assumed?
+2. Solution fit — Does the product actually solve the problem end-to-end, or just part of it?
+3. Market opportunity — Is there a real, sizable market? Are the numbers believable?
+4. Business model — How does money come in? Is it clear and sustainable?
+5. Competitive moat — Is the advantage real and defensible, or just "we're better"?
+6. Overall investor readiness — Would a smart investor want to hear more after this pitch?
+
+Based on your full analysis, give:
+- A realistic investor readiness score from 0-100 (be honest — most early ideas score 40-65)
+- 2-4 specific strengths (what actually works and why)
+- 2-4 specific weaknesses (what's unclear, risky, or missing — be direct)
+- 2-4 specific, actionable suggestions (concrete things to do, not generic advice)
+
+Keep language plain and simple. No jargon. Sound like a human expert giving real feedback, not a checklist.
+
+Reply with JSON only:
+{
+  "score": number,
+  "strengths": ["...", "..."],
+  "weaknesses": ["...", "..."],
+  "suggestions": ["...", "..."]
+}`;
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      max_completion_tokens: 700,
+      response_format: { type: "json_object" },
+      messages: [{ role: "user", content: prompt }],
+    });
+    const raw = response.choices[0]?.message?.content ?? "{}";
+    const parsed = JSON.parse(raw) as {
+      score?: number;
+      strengths?: string[];
+      weaknesses?: string[];
+      suggestions?: string[];
+    };
+    if (parsed.score && parsed.strengths && parsed.weaknesses && parsed.suggestions) {
+      return {
+        score: Math.min(98, Math.max(10, Math.round(parsed.score))),
+        strengths: parsed.strengths.slice(0, 4),
+        weaknesses: parsed.weaknesses.slice(0, 4),
+        suggestions: parsed.suggestions.slice(0, 4),
+      };
+    }
+  } catch (err) {
+    logger.warn({ err }, "AI validation failed, using fallback");
+  }
+
+  // Heuristic fallback
+  const fields: (keyof Idea)[] = ["problem","solution","market","businessModel","competitiveEdge","targetAudience"];
   const filled = fields.filter((f) => typeof idea[f] === "string" && (idea[f] as string).length > 30);
   const completeness = filled.length / fields.length;
   const rawLen = (idea.rawText ?? "").length;
   const richness = Math.min(rawLen / 600, 1);
   const score = Math.round(45 + completeness * 40 + richness * 15);
-
-  const strengths: string[] = [];
-  const weaknesses: string[] = [];
-  const suggestions: string[] = [];
-
-  if (completeness >= 0.8) {
-    strengths.push("Your idea covers all the key sections an investor looks for.");
-  } else {
-    weaknesses.push("A few key sections are missing or too short — problem, solution, market, business model, edge, audience.");
-    suggestions.push("Use the AI structuring step, then add one real example or number to each section.");
-  }
-
-  if (richness >= 0.6) {
-    strengths.push("You gave enough detail for the AI to work with. That's a good sign.");
-  } else {
-    weaknesses.push("Your idea description is short — investors need more context to understand it.");
-    suggestions.push("Expand your raw idea: who is the user, what is the exact pain, and why does it matter now.");
-  }
-
-  if (idea.competitiveEdge && idea.competitiveEdge.length > 60) {
-    strengths.push("You clearly explained why you win — investors will test this hard.");
-  } else {
-    weaknesses.push("Why you win isn't clear yet. That's often the first thing investors ask.");
-    suggestions.push("Write your unfair advantage in one sentence: what do you have that others don't?");
-  }
-
-  if (idea.businessModel && idea.businessModel.toLowerCase().includes("free")) {
-    suggestions.push("Explain your free-to-paid numbers: how many free users convert, and how much do they pay?");
-  }
-
-  if (strengths.length === 0) strengths.push("You wrote it down and shared it — that's the first real step.");
-
-  return { score: Math.min(98, Math.max(35, score)), strengths, weaknesses, suggestions };
+  return {
+    score: Math.min(98, Math.max(35, score)),
+    strengths: completeness >= 0.8
+      ? ["Your idea covers the key areas investors look for."]
+      : ["You've started — that's the first step."],
+    weaknesses: completeness < 0.8
+      ? ["Several key sections are missing or too short."]
+      : [],
+    suggestions: ["Add real numbers and specific user examples to every section."],
+  };
 }
 
 export function generateDeckSlides(idea: Idea): {
@@ -297,23 +338,35 @@ export interface InvestorPersonaInfo {
 }
 
 const PERSONA_SYSTEM_PROMPTS: Record<string, string> = {
-  "aggressive-vc": `You are Marcus, a VC who has heard thousands of pitches. Blunt, direct, impatient with vague answers.
+  "aggressive-vc": `You are Marcus, a VC. You've funded 3 unicorns and killed 50 pitches this month. Blunt, fast, allergic to vague answers.
 
-React to what the founder JUST said (one short reaction word or phrase), then ask ONE sharp question. Max 2 sentences total. Plain English only. Never repeat a question already asked.
+How you talk:
+- You react in 3-8 words to what they just said — then you ask ONE sharp question.
+- If their answer was strong: "Okay. Now—" or "Fair enough." then next question.
+- If their answer was weak: "That's not an answer." or "You're dodging." then push harder on it.
+- If it was the opening: skip reaction, just ask your hardest opening question.
+- NEVER be polite just to be polite. NEVER say "Great question" or "Thanks for sharing."
+- Total output: 1-3 short sentences. Plain English. No jargon.`,
 
-Examples of reactions: "That's not an answer." / "Okay, fair." / "You're dodging." / "Good — now prove it."`,
+  "curious-angel": `You are Priya, an angel investor. You've backed 12 companies — you invest in people, not just ideas. Warm, sharp, genuinely curious.
 
-  "curious-angel": `You are Priya, a warm angel investor who loves founder stories and cares deeply about the people behind ideas.
+How you talk:
+- You react in 3-8 words to what they just said — then ask ONE question about their story, users, or learning.
+- If their answer excited you: "Oh wow, okay." or "That's actually really cool." then follow up.
+- If something's unclear: "Hmm, I'm not quite getting that." then ask to explain it differently.
+- If it was the opening: start with a warm, human question about them or the story behind it.
+- NEVER sound like a robot. NEVER repeat a question you already asked.
+- Total output: 1-3 short sentences. Warm but direct.`,
 
-React genuinely to what the founder just said (one warm reaction), then ask ONE focused question about their story, users, or what they've learned. Max 2 sentences total. Sound like a real human. Never repeat a question already asked.
+  "skeptical-judge": `You are Daniel, a pitch competition judge. 15 years of experience. Fair, precise, impossible to impress without real evidence.
 
-Examples of reactions: "Oh, that's interesting." / "Hmm, tell me more." / "I love that." / "Wait — really?"`,
-
-  "skeptical-judge": `You are Daniel, a pitch judge who is fair but quietly relentless. You want proof, not promises.
-
-React briefly to what the founder just said (one measured reaction), then ask ONE evidence-focused question. Max 2 sentences total. Plain English. Never repeat a question already asked.
-
-Examples of reactions: "Reasonable." / "I'm not sure that follows." / "Let's test that." / "That actually makes sense."`,
+How you talk:
+- You react in 3-8 words to what they just said — then ask ONE evidence-focused question.
+- If something checks out: "Okay, that tracks." or "That's reasonable." then move to next gap.
+- If something doesn't add up: "I'm not sure that follows." or "That's a big assumption." then press on it.
+- If it was the opening: start with a focused, calm question that tests their core assumption.
+- NEVER say generic phrases like "interesting" without meaning it. NEVER repeat a question.
+- Total output: 1-3 short sentences. Measured and specific.`,
 };
 
 const FALLBACK_QUESTIONS: Record<string, string[]> = {

@@ -177,7 +177,7 @@ router.post(
       res.status(404).json({ error: "Idea not found" });
       return;
     }
-    const result = validateIdea(idea);
+    const result = await validateIdea(idea);
     await db
       .update(ideasTable)
       .set({
