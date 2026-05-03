@@ -4,7 +4,6 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthGate } from "@/components/AuthGate";
 import { AppShell } from "@/components/AppShell";
-import { AuthProvider } from "@/contexts/auth";
 import LandingPage from "@/pages/Landing";
 import LoginPage from "@/pages/Login";
 import DashboardPage from "@/pages/Dashboard";
@@ -29,8 +28,6 @@ const queryClient = new QueryClient({
   },
 });
 
-const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
-
 function Authed({ children }: { children: React.ReactNode }) {
   return (
     <AuthGate>
@@ -44,8 +41,6 @@ function Router() {
     <Switch>
       <Route path="/" component={LandingPage} />
       <Route path="/login" component={LoginPage} />
-      <Route path="/sign-in" component={LoginPage} />
-      <Route path="/sign-up" component={LoginPage} />
 
       <Route path="/dashboard">
         <Authed>
@@ -118,16 +113,14 @@ function Router() {
 
 function App() {
   return (
-    <WouterRouter base={basePath}>
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <TooltipProvider>
-            <Router />
-            <Toaster />
-          </TooltipProvider>
-        </AuthProvider>
-      </QueryClientProvider>
-    </WouterRouter>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+          <Router />
+        </WouterRouter>
+        <Toaster />
+      </TooltipProvider>
+    </QueryClientProvider>
   );
 }
 

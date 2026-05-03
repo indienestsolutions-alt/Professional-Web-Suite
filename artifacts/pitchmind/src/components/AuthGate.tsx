@@ -1,15 +1,17 @@
 import { useEffect, type ReactNode } from "react";
-import { useAuthContext } from "@/contexts/auth";
+import { useLocation } from "wouter";
+import { useAuth } from "@workspace/replit-auth-web";
 import { Spinner } from "@/components/ui/spinner";
 
 export function AuthGate({ children }: { children: ReactNode }) {
-  const { isAuthenticated, isLoading, login } = useAuthContext();
+  const { isAuthenticated, isLoading } = useAuth();
+  const [, setLocation] = useLocation();
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      login();
+      setLocation("/login");
     }
-  }, [isAuthenticated, isLoading, login]);
+  }, [isAuthenticated, isLoading, setLocation]);
 
   if (isLoading) {
     return (

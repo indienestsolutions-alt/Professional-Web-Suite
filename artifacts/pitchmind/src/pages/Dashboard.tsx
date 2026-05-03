@@ -8,7 +8,7 @@ import {
   getGetRecentActivityQueryKey,
   getGetProgressSeriesQueryKey,
 } from "@workspace/api-client-react";
-import { useAuthContext } from "@/contexts/auth";
+import { useAuth } from "@workspace/replit-auth-web";
 import { PageContainer, PageHeader } from "@/components/AppShell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -38,7 +38,7 @@ import { motion } from "framer-motion";
 import { formatRelative, formatScore } from "@/lib/format";
 
 export default function DashboardPage() {
-  const { user } = useAuthContext();
+  const { user } = useAuth();
   const [, setLocation] = useLocation();
   const summary = useGetDashboardSummary({
     query: { queryKey: getGetDashboardSummaryQueryKey() },

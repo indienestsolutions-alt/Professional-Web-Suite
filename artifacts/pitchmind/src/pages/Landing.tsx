@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
-import { useAuthContext } from "@/contexts/auth";
+import { useAuth } from "@workspace/replit-auth-web";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Wordmark } from "@/components/Logo";
@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 
 export default function LandingPage() {
-  const { isAuthenticated, login } = useAuthContext();
+  const { isAuthenticated, login } = useAuth();
   const [, setLocation] = useLocation();
   const [scrolled, setScrolled] = useState(false);
   const { scrollYProgress } = useScroll();

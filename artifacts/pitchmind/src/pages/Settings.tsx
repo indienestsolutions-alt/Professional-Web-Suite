@@ -1,4 +1,4 @@
-import { useAuthContext } from "@/contexts/auth";
+import { useAuth } from "@workspace/replit-auth-web";
 import { PageContainer, PageHeader } from "@/components/AppShell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -7,12 +7,7 @@ import { LogOut, Settings as SettingsIcon, ShieldCheck } from "lucide-react";
 import { initials } from "@/lib/format";
 
 export default function SettingsPage() {
-  const { user, logout } = useAuthContext();
-
-  const firstName = user?.firstName ?? null;
-  const lastName = user?.lastName ?? null;
-  const email = user?.email ?? null;
-  const imageUrl = user?.profileImageUrl ?? undefined;
+  const { user, logout } = useAuth();
 
   return (
     <PageContainer>
@@ -31,24 +26,24 @@ export default function SettingsPage() {
           <CardContent className="p-6">
             <div className="flex items-center gap-4">
               <Avatar className="h-16 w-16">
-                <AvatarImage src={imageUrl} />
+                <AvatarImage src={user?.profileImageUrl ?? undefined} />
                 <AvatarFallback className="bg-primary text-primary-foreground text-lg">
-                  {initials(firstName, lastName)}
+                  {initials(user?.firstName, user?.lastName)}
                 </AvatarFallback>
               </Avatar>
               <div>
                 <div className="font-display text-xl font-semibold">
-                  {firstName ?? ""} {lastName ?? ""}
+                  {user?.firstName ?? ""} {user?.lastName ?? ""}
                 </div>
                 <div className="text-sm text-muted-foreground">
-                  {email ?? "No email on file"}
+                  {user?.email ?? "No email on file"}
                 </div>
               </div>
             </div>
             <div className="mt-6 grid sm:grid-cols-2 gap-4">
-              <Field label="First name" value={firstName ?? "—"} />
-              <Field label="Last name" value={lastName ?? "—"} />
-              <Field label="Email" value={email ?? "—"} />
+              <Field label="First name" value={user?.firstName ?? "—"} />
+              <Field label="Last name" value={user?.lastName ?? "—"} />
+              <Field label="Email" value={user?.email ?? "—"} />
               <Field label="User ID" value={user?.id ?? "—"} mono />
             </div>
           </CardContent>
