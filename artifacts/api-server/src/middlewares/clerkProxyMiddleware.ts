@@ -53,9 +53,11 @@ export function getClerkProxyHost(req: {
 }
 
 export function clerkProxyMiddleware(): RequestHandler {
-  // Only run proxy in production — Clerk proxying doesn't work for dev instances
+  // Only run proxy in production — Clerk proxying doesn't work for dev instances.
+  // In dev, respond immediately so the request never falls through to the API
+  // router (which has no /__clerk route and would return 404).
   if (process.env.NODE_ENV !== "production") {
-    return (_req, _res, next) => next();
+    return (_req, res) => res.status(200).json({ ok: true });
   }
 
   const secretKey = process.env.CLERK_SECRET_KEY;

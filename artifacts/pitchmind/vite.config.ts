@@ -2,6 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import path from "path";
+import fs from "fs";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 
 const rawPort = process.env.PORT;
@@ -26,12 +27,42 @@ if (!basePath) {
   );
 }
 
+/**
+ * Vite plugin that serves index.html for Clerk's dev-browser sync paths.
+ *
+ * Clerk's dev SDK makes requests to /__clerk_db_jwt (and similar /__clerk* paths)
+ * on the app domain to sync the dev-browser JWT.  These must return the SPA shell
+ * so React mounts and Clerk's JS picks up the token from the URL — otherwise the
+ * Replit preview proxy 404s them before they reach Vite's own SPA-fallback logic.
+ */
+function clerkDevBrowserPlugin() {
+  return {
+    name: "clerk-dev-browser",
+    configureServer(server: import("vite").ViteDevServer) {
+      server.middlewares.use((req, res, next) => {
+        const url = req.url ?? "";
+        if (url.startsWith("/__clerk") || url === "/__clerk_db_jwt") {
+          const indexPath = path.resolve(import.meta.dirname, "index.html");
+          if (fs.existsSync(indexPath)) {
+            res.setHeader("Content-Type", "text/html");
+            res.statusCode = 200;
+            res.end(fs.readFileSync(indexPath, "utf-8"));
+            return;
+          }
+        }
+        next();
+      });
+    },
+  };
+}
+
 export default defineConfig({
   base: basePath,
   plugins: [
     react(),
     tailwindcss({ optimize: false }),
     runtimeErrorOverlay(),
+    clerkDevBrowserPlugin(),
     ...(process.env.NODE_ENV !== "production" &&
     process.env.REPL_ID !== undefined
       ? [

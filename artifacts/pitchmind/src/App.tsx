@@ -5,7 +5,6 @@ import {
   SignUp,
   useClerk,
 } from "@clerk/react";
-import { publishableKeyFromHost } from "@clerk/react/internal";
 import { shadcn } from "@clerk/themes";
 import { Switch, Route, useLocation, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
@@ -36,13 +35,13 @@ const queryClient = new QueryClient({
   },
 });
 
-const clerkPubKey = publishableKeyFromHost(
-  window.location.hostname,
-  import.meta.env.VITE_CLERK_PUBLISHABLE_KEY,
-);
+// Use the publishable key directly — publishableKeyFromHost triggers Clerk's
+// internal domain detection which activates the proxy on Replit hostnames and
+// causes spurious /api/__clerk 404s in dev.
+const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string;
 
-// Only pass proxyUrl when it's a non-empty string — an empty string makes
-// Clerk treat "" as the proxy base and fire requests that 404 in dev.
+// Only pass proxyUrl when it's a non-empty string — needed in production
+// when VITE_CLERK_PROXY_URL is set, ignored (undefined) in dev.
 const clerkProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL || undefined;
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");

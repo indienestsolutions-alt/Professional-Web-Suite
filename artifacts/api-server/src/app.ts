@@ -53,4 +53,10 @@ app.use(
 
 app.use("/api", router);
 
+// Global 404 handler — logs the full URL so we can identify mystery 404s.
+app.use((req, res) => {
+  logger.warn({ url: req.originalUrl, method: req.method }, "404 Not Found");
+  res.status(404).json({ error: "Not Found", path: req.originalUrl });
+});
+
 export default app;
