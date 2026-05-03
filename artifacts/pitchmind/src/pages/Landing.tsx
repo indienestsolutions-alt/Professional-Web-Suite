@@ -15,7 +15,18 @@ import {
   LineChart,
   Check,
   Quote,
+  Star,
 } from "lucide-react";
+
+const BASE_URL = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+
+interface PublicReview {
+  id: string;
+  rating: number;
+  description: string;
+  displayName: string | null;
+  createdAt: string;
+}
 
 export default function LandingPage() {
   const { isAuthenticated, login } = useAuth();
@@ -23,11 +34,20 @@ export default function LandingPage() {
   const [scrolled, setScrolled] = useState(false);
   const { scrollYProgress } = useScroll();
   const heroY = useTransform(scrollYProgress, [0, 0.3], [0, -80]);
+  const [reviews, setReviews] = useState<PublicReview[]>([]);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 12);
     window.addEventListener("scroll", onScroll);
     return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    const apiBase = `${BASE_URL}/api`.replace("//api", "/api");
+    fetch(`${apiBase}/reviews`)
+      .then((r) => r.json())
+      .then((data) => { if (Array.isArray(data)) setReviews(data); })
+      .catch(() => {});
   }, []);
 
   const goCTA = () => {
@@ -446,6 +466,51 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+      {/* LIVE REVIEWS MARQUEE */}
+      {reviews.length > 0 && (
+        <section className="py-16 border-y border-border bg-background overflow-hidden">
+          <div className="max-w-7xl mx-auto px-4 md:px-8 mb-8">
+            <div className="font-mono text-xs uppercase tracking-[0.2em] text-primary">
+              05 — Real reviews
+            </div>
+            <h2 className="mt-2 font-display text-3xl md:text-4xl font-semibold tracking-tight">
+              From founders who've used it.
+            </h2>
+          </div>
+          <div className="pm-marquee-wrap">
+            <div className="pm-marquee-track">
+              {[...reviews, ...reviews].map((r, i) => (
+                <div
+                  key={`${r.id}-${i}`}
+                  className="mx-3 w-72 shrink-0 rounded-2xl border border-border bg-card p-5 flex flex-col gap-3"
+                >
+                  <div className="flex items-center gap-0.5">
+                    {[1, 2, 3, 4, 5].map((s) => (
+                      <Star
+                        key={s}
+                        className={`h-4 w-4 ${
+                          s <= r.rating
+                            ? "fill-primary text-primary"
+                            : "text-muted-foreground/20"
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  <p className="text-sm text-foreground leading-relaxed line-clamp-4">
+                    {r.description}
+                  </p>
+                  {r.displayName && (
+                    <p className="text-xs text-muted-foreground font-medium mt-auto">
+                      {r.displayName}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* WHO IT'S FOR */}
       <section className="py-24 md:py-32">

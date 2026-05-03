@@ -10,9 +10,10 @@ const BASE_URL = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
 interface ReviewModalProps {
   sessionId: string;
   onClose: () => void;
+  onReviewed: () => void;
 }
 
-export function ReviewModal({ sessionId, onClose }: ReviewModalProps) {
+export function ReviewModal({ sessionId, onClose, onReviewed }: ReviewModalProps) {
   const { toast } = useToast();
   const [rating, setRating] = useState(0);
   const [hovered, setHovered] = useState(0);
@@ -34,7 +35,8 @@ export function ReviewModal({ sessionId, onClose }: ReviewModalProps) {
       });
       if (!res.ok && res.status !== 409) throw new Error("Failed");
       setDone(true);
-      setTimeout(onClose, 1800);
+      onReviewed();
+      setTimeout(onClose, 2000);
     } catch {
       toast({ title: "Couldn't save your review", description: "Please try again.", variant: "destructive" });
     } finally {
@@ -71,11 +73,13 @@ export function ReviewModal({ sessionId, onClose }: ReviewModalProps) {
                 key="done"
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="flex flex-col items-center justify-center py-6 text-center"
+                className="flex flex-col items-center justify-center py-8 text-center gap-3"
               >
-                <div className="text-4xl mb-3">🎉</div>
+                <div className="text-5xl">🎉</div>
                 <h3 className="font-display text-xl font-semibold">Thanks for your review!</h3>
-                <p className="text-sm text-muted-foreground mt-2">Your feedback helps other founders find PitchMind.</p>
+                <p className="text-sm text-muted-foreground">
+                  Your feedback helps other student founders find PitchMind.
+                </p>
               </motion.div>
             ) : (
               <motion.div key="form" initial={{ opacity: 1 }}>
@@ -86,10 +90,9 @@ export function ReviewModal({ sessionId, onClose }: ReviewModalProps) {
                   How was your pitch session?
                 </h3>
                 <p className="text-sm text-muted-foreground mb-5">
-                  Your honest review helps other student founders find PitchMind.
+                  Takes 30 seconds. Helps the next founder who finds this app.
                 </p>
 
-                {/* Star rating */}
                 <div className="flex items-center gap-1.5 mb-5">
                   {[1, 2, 3, 4, 5].map((star) => (
                     <button
@@ -103,7 +106,7 @@ export function ReviewModal({ sessionId, onClose }: ReviewModalProps) {
                         className={`h-8 w-8 transition-colors ${
                           star <= (hovered || rating)
                             ? "fill-primary text-primary"
-                            : "text-muted-foreground/40"
+                            : "text-muted-foreground/30"
                         }`}
                       />
                     </button>
@@ -118,11 +121,16 @@ export function ReviewModal({ sessionId, onClose }: ReviewModalProps) {
                 <Textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Tell other founders what you found most useful…"
+                  placeholder="What helped you most? What would you tell another student founder about PitchMind?"
                   rows={3}
-                  className="resize-none text-sm mb-4"
-                  maxLength={1000}
+                  className="resize-none text-sm mb-1"
+                  maxLength={600}
                 />
+                <p className="text-xs text-muted-foreground mb-4">
+                  {description.trim().length < 10
+                    ? `${10 - description.trim().length} more characters needed`
+                    : `${description.trim().length} / 600`}
+                </p>
 
                 <div className="flex gap-2">
                   <Button

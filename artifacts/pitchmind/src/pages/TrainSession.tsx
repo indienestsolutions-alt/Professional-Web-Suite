@@ -293,10 +293,8 @@ export default function TrainSessionPage({ id }: { id: string }) {
       {showReview && (
         <ReviewModal
           sessionId={id}
-          onClose={() => {
-            setShowReview(false);
-            localStorage.setItem(`pm_reviewed_${id}`, "1");
-          }}
+          onReviewed={() => localStorage.setItem(`pm_reviewed_${id}`, "1")}
+          onClose={() => setShowReview(false)}
         />
       )}
 

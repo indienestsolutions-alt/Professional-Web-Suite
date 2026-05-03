@@ -2,17 +2,9 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { desc, eq } from "drizzle-orm";
 import { db, reviewsTable, usersTable } from "@workspace/db";
 import { requireAuth } from "../lib/requireAuth";
-import { z } from "zod";
 
 const router: IRouter = Router();
 
-const SubmitReviewBody = z.object({
-  rating: z.number().int().min(1).max(5),
-  description: z.string().min(10).max(1000),
-  sessionId: z.string().optional(),
-});
-
-// Public: get all reviews (for landing page)
 router.get("/reviews", async (_req: Request, res: Response): Promise<void> => {
   const rows = await db
     .select({
@@ -28,21 +20,25 @@ router.get("/reviews", async (_req: Request, res: Response): Promise<void> => {
   res.json(rows);
 });
 
-// Authenticated: submit a review (once per session)
 router.post("/reviews", requireAuth, async (req: Request, res: Response): Promise<void> => {
-  const parsed = SubmitReviewBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.message });
+  const { rating, description, sessionId } = req.body ?? {};
+
+  if (typeof rating !== "number" || rating < 1 || rating > 5 || !Number.isInteger(rating)) {
+    res.status(400).json({ error: "Rating must be an integer 1–5" });
     return;
   }
+  if (typeof description !== "string" || description.trim().length < 10 || description.trim().length > 1000) {
+    res.status(400).json({ error: "Description must be 10–1000 characters" });
+    return;
+  }
+
   const userId = req.user!.id;
 
-  // If sessionId provided, prevent duplicate review for same session
-  if (parsed.data.sessionId) {
+  if (typeof sessionId === "string" && sessionId.length > 0) {
     const existing = await db
       .select({ id: reviewsTable.id })
       .from(reviewsTable)
-      .where(eq(reviewsTable.sessionId, parsed.data.sessionId))
+      .where(eq(reviewsTable.sessionId, sessionId))
       .limit(1);
     if (existing.length > 0) {
       res.status(409).json({ error: "Already reviewed this session" });
@@ -50,7 +46,6 @@ router.post("/reviews", requireAuth, async (req: Request, res: Response): Promis
     }
   }
 
-  // Build display name from user profile
   const [user] = await db
     .select({ firstName: usersTable.firstName, lastName: usersTable.lastName })
     .from(usersTable)
@@ -67,9 +62,9 @@ router.post("/reviews", requireAuth, async (req: Request, res: Response): Promis
     .insert(reviewsTable)
     .values({
       userId,
-      sessionId: parsed.data.sessionId ?? null,
-      rating: parsed.data.rating,
-      description: parsed.data.description,
+      sessionId: typeof sessionId === "string" ? sessionId : null,
+      rating,
+      description: description.trim(),
       displayName,
     })
     .returning();
