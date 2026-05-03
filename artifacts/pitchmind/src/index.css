@@ -373,3 +373,17 @@
 iframe[src*="replit.com/badge"] {
   display: none !important;
 }
+
+.cl-badge,
+.cl-badge--shadow,
+.cl-developmentModeNotice,
+[class*="cl-badge"],
+[class*="cl-devMode"],
+[class*="cl-internal-badge"],
+[data-localization-key="badge__devMode"],
+[data-localization-key="developmentMode"] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}

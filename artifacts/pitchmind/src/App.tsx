@@ -103,6 +103,9 @@ const clerkAppearance = {
     otpCodeFieldInput: "border-[#d1d5db] text-[#1a1a1a]",
     formFieldRow: "",
     main: "",
+    badge: { display: "none" },
+    developmentModeNotice: { display: "none" },
+    impersonationFab: { display: "none" },
   },
 };
 
@@ -130,9 +133,63 @@ function SignUpPage() {
   );
 }
 
+function useHideClerkDevBadge() {
+  useEffect(() => {
+    const BADGE_CLASS_RE = /cl-badge|cl-devMode|cl-DevMode|cl-internal-badge/i;
+
+    const killByClass = (node: Element) => {
+      if (
+        node instanceof HTMLElement &&
+        (BADGE_CLASS_RE.test(node.className?.toString() ?? "") ||
+          node.getAttribute("data-clerk-badge") != null)
+      ) {
+        node.style.setProperty("display", "none", "important");
+      }
+    };
+
+    // Target leaf nodes only — avoids hiding parent containers
+    const killBadgeLeaf = (node: Element) => {
+      if (node instanceof HTMLElement && node.children.length === 0) {
+        const own = node.textContent?.trim().toLowerCase();
+        if (own === "development mode" || own === "dev mode") {
+          const parent = node.parentElement;
+          if (parent) parent.style.setProperty("display", "none", "important");
+          node.style.setProperty("display", "none", "important");
+        }
+      }
+    };
+
+    const sweep = (root: Element | Document = document) => {
+      (root instanceof Document ? root.querySelectorAll("*") : root.querySelectorAll("*"))
+        .forEach((el) => {
+          killByClass(el);
+          killBadgeLeaf(el);
+        });
+    };
+
+    sweep();
+
+    const observer = new MutationObserver((mutations) => {
+      for (const m of mutations) {
+        m.addedNodes.forEach((n) => {
+          if (n instanceof Element) {
+            killByClass(n);
+            killBadgeLeaf(n);
+            sweep(n);
+          }
+        });
+      }
+    });
+
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, []);
+}
+
 function ClerkQueryClientCacheInvalidator() {
   const { addListener } = useClerk();
   const qc = useQueryClient();
+  useHideClerkDevBadge();
   const prevUserIdRef = useRef<string | null | undefined>(undefined);
 
   useEffect(() => {
