@@ -1,12 +1,12 @@
 import { useEffect } from "react";
-import { useLocation } from "wouter";
+import { useAuthContext } from "@/contexts/auth";
 
 export default function LoginPage() {
-  const [, setLocation] = useLocation();
+  const { login } = useAuthContext();
 
   useEffect(() => {
-    setLocation("/sign-in", { replace: true });
-  }, [setLocation]);
+    login();
+  }, [login]);
 
   return null;
 }

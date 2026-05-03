@@ -1,4 +1,4 @@
-import { useUser, useClerk } from "@clerk/react";
+import { useAuthContext } from "@/contexts/auth";
 import { PageContainer, PageHeader } from "@/components/AppShell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -7,13 +7,12 @@ import { LogOut, Settings as SettingsIcon, ShieldCheck } from "lucide-react";
 import { initials } from "@/lib/format";
 
 export default function SettingsPage() {
-  const { user } = useUser();
-  const { signOut } = useClerk();
+  const { user, logout } = useAuthContext();
 
   const firstName = user?.firstName ?? null;
   const lastName = user?.lastName ?? null;
-  const email = user?.primaryEmailAddress?.emailAddress ?? null;
-  const imageUrl = user?.imageUrl ?? undefined;
+  const email = user?.email ?? null;
+  const imageUrl = user?.profileImageUrl ?? undefined;
 
   return (
     <PageContainer>
@@ -73,7 +72,7 @@ export default function SettingsPage() {
             <Button
               variant="outline"
               className="mt-5 w-full"
-              onClick={() => signOut()}
+              onClick={() => logout()}
               data-testid="logout-button"
             >
               <LogOut className="h-4 w-4 mr-2" /> Log out

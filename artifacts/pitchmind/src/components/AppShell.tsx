@@ -1,6 +1,6 @@
 import { type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
-import { useUser, useClerk } from "@clerk/react";
+import { useAuthContext } from "@/contexts/auth";
 import {
   LayoutDashboard,
   Lightbulb,
@@ -57,14 +57,13 @@ const NAV: NavItem[] = [
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const { user } = useUser();
-  const { signOut } = useClerk();
+  const { user, logout } = useAuthContext();
   const [location] = useLocation();
 
   const firstName = user?.firstName ?? null;
   const lastName = user?.lastName ?? null;
-  const email = user?.primaryEmailAddress?.emailAddress ?? null;
-  const imageUrl = user?.imageUrl ?? undefined;
+  const email = user?.email ?? null;
+  const imageUrl = user?.profileImageUrl ?? undefined;
 
   return (
     <div className="min-h-screen flex bg-background text-foreground">
@@ -156,7 +155,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <Settings className="mr-2 h-4 w-4" /> Settings
                 </DropdownMenuItem>
               </Link>
-              <DropdownMenuItem onClick={() => signOut()}>
+              <DropdownMenuItem onClick={() => logout()}>
                 <LogOut className="mr-2 h-4 w-4" /> Log out
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -169,14 +168,72 @@ export function AppShell({ children }: { children: ReactNode }) {
         {/* Mobile top header */}
         <header className="md:hidden flex items-center justify-between px-4 py-3 border-b border-border bg-card shrink-0">
           <Wordmark />
-          <Button variant="ghost" size="icon" onClick={() => signOut()}>
-            <LogOut className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="flex items-center gap-2">
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={imageUrl} />
+                    <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+                      {initials(firstName, lastName)}
+                    </AvatarFallback>
+                  </Avatar>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuLabel>{firstName ?? "Founder"}</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <Link href="/settings">
+                  <DropdownMenuItem>
+                    <Settings className="mr-2 h-4 w-4" /> Settings
+                  </DropdownMenuItem>
+                </Link>
+                <DropdownMenuItem onClick={() => logout()}>
+                  <LogOut className="mr-2 h-4 w-4" /> Log out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </header>
 
-        <main className="flex-1 min-w-0 overflow-x-hidden">
+        <main className="flex-1 min-w-0 overflow-x-hidden pb-20 md:pb-0">
           {children}
         </main>
+
+        {/* Mobile bottom navigation */}
+        <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-card border-t border-border flex items-stretch">
+          {NAV.map((item) => {
+            const active = item.match(location);
+            const Icon = item.icon;
+            return (
+              <Link key={item.href} href={item.href}>
+                <a
+                  className={`flex-1 flex flex-col items-center justify-center gap-1 py-2 px-1 text-[10px] font-mono uppercase tracking-widest transition-colors min-w-0 ${
+                    active
+                      ? "text-primary"
+                      : "text-muted-foreground"
+                  }`}
+                  style={{ minWidth: 0, flex: "1 1 0" }}
+                >
+                  <Icon className={`h-5 w-5 ${active ? "text-primary" : ""}`} />
+                  {item.label}
+                </a>
+              </Link>
+            );
+          })}
+          <Link href="/settings">
+            <a
+              className={`flex flex-col items-center justify-center gap-1 py-2 px-3 text-[10px] font-mono uppercase tracking-widest transition-colors ${
+                location === "/settings"
+                  ? "text-primary"
+                  : "text-muted-foreground"
+              }`}
+            >
+              <Settings className="h-5 w-5" />
+              More
+            </a>
+          </Link>
+        </nav>
       </div>
     </div>
   );

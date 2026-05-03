@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
-import { useUser, useClerk } from "@clerk/react";
+import { useAuthContext } from "@/contexts/auth";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Wordmark } from "@/components/Logo";
@@ -18,8 +18,7 @@ import {
 } from "lucide-react";
 
 export default function LandingPage() {
-  const { isSignedIn } = useUser();
-  const { openSignIn } = useClerk();
+  const { isAuthenticated, login } = useAuthContext();
   const [, setLocation] = useLocation();
   const [scrolled, setScrolled] = useState(false);
   const { scrollYProgress } = useScroll();
@@ -32,8 +31,8 @@ export default function LandingPage() {
   }, []);
 
   const goCTA = () => {
-    if (isSignedIn) setLocation("/dashboard");
-    else openSignIn();
+    if (isAuthenticated) setLocation("/dashboard");
+    else login();
   };
 
   return (
@@ -74,7 +73,7 @@ export default function LandingPage() {
             </a>
           </nav>
           <div className="flex items-center gap-2">
-            {isSignedIn ? (
+            {isAuthenticated ? (
               <Button size="sm" onClick={() => setLocation("/dashboard")}>
                 Open dashboard
               </Button>
@@ -83,12 +82,12 @@ export default function LandingPage() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => openSignIn()}
+                  onClick={() => login()}
                   data-testid="header-login"
                 >
                   Log in
                 </Button>
-                <Button size="sm" onClick={() => openSignIn()}>
+                <Button size="sm" onClick={() => login()}>
                   Get started
                 </Button>
               </>
