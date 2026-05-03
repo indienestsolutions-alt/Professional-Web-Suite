@@ -2,6 +2,12 @@
 @import "tw-animate-css";
 @plugin "@tailwindcss/typography";
 
+/* Hide Replit badge */
+#replit-badge-container,
+[data-replit-badge],
+.replit-badge,
+#replit-badge { display: none !important; }
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
