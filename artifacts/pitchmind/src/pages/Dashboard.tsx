@@ -275,93 +275,101 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-6">
+      <div className="grid lg:grid-cols-3 gap-6 items-start">
         <div className="lg:col-span-2">
-          <SectionHeading
-            title="Recent activity"
-            description="Everything you've shipped, structured, or pitched."
-          />
-          <div className="space-y-2">
-            {recent.isLoading ? (
-              [...Array(4)].map((_, i) => (
-                <Skeleton key={i} className="h-16 w-full rounded-lg" />
-              ))
-            ) : (recent.data ?? []).length === 0 ? (
-              <EmptyState
-                icon={<Activity className="h-5 w-5" />}
-                title="No activity yet"
-                body="Create your first idea to start building your pitch history."
-                cta={
-                  <Button onClick={() => setLocation("/ideas")}>
-                    <Lightbulb className="h-4 w-4 mr-2" /> Create an idea
-                  </Button>
-                }
+          <Card>
+            <CardContent className="p-6">
+              <SectionHeading
+                title="Recent activity"
+                description="Everything you've shipped, structured, or pitched."
               />
-            ) : (
-              recent.data!.map((item, i) => (
-                <motion.div
-                  key={item.id}
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.03 }}
-                >
-                  <Link href={item.link ?? "#"}>
-                    <a className="flex items-center gap-4 p-4 rounded-lg border border-border bg-card hover:border-foreground/20 transition-colors group">
-                      <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                        {iconForActivity(item.type)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium truncate">
-                          {item.title}
-                        </div>
-                        <div className="text-sm text-muted-foreground truncate">
-                          {item.description}
-                        </div>
-                      </div>
-                      <div className="text-right shrink-0">
-                        {item.score != null && (
-                          <Badge variant="secondary" className="font-mono">
-                            {Math.round(item.score)}
-                          </Badge>
-                        )}
-                        <div className="text-xs text-muted-foreground mt-1">
-                          {formatRelative(item.createdAt)}
-                        </div>
-                      </div>
-                      <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
-                    </a>
-                  </Link>
-                </motion.div>
-              ))
-            )}
-          </div>
+              <div className="space-y-2">
+                {recent.isLoading ? (
+                  [...Array(4)].map((_, i) => (
+                    <Skeleton key={i} className="h-16 w-full rounded-lg" />
+                  ))
+                ) : (recent.data ?? []).length === 0 ? (
+                  <EmptyState
+                    icon={<Activity className="h-5 w-5" />}
+                    title="No activity yet"
+                    body="Create your first idea to start building your pitch history."
+                    cta={
+                      <Button onClick={() => setLocation("/ideas")}>
+                        <Lightbulb className="h-4 w-4 mr-2" /> Create an idea
+                      </Button>
+                    }
+                  />
+                ) : (
+                  recent.data!.map((item, i) => (
+                    <motion.div
+                      key={item.id}
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: i * 0.03 }}
+                    >
+                      <Link href={item.link ?? "#"}>
+                        <a className="flex items-center gap-4 p-4 rounded-lg border border-border bg-background hover:border-foreground/20 transition-colors group">
+                          <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                            {iconForActivity(item.type)}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium truncate">
+                              {item.title}
+                            </div>
+                            <div className="text-sm text-muted-foreground truncate">
+                              {item.description}
+                            </div>
+                          </div>
+                          <div className="text-right shrink-0">
+                            {item.score != null && (
+                              <Badge variant="secondary" className="font-mono">
+                                {Math.round(item.score)}
+                              </Badge>
+                            )}
+                            <div className="text-xs text-muted-foreground mt-1">
+                              {formatRelative(item.createdAt)}
+                            </div>
+                          </div>
+                          <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+                        </a>
+                      </Link>
+                    </motion.div>
+                  ))
+                )}
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         <div>
-          <SectionHeading
-            title="Quick paths"
-            description="Jump straight to where work happens."
-          />
-          <div className="space-y-3">
-            <QuickAction
-              to="/ideas"
-              title="New startup idea"
-              body="Drop the rough version. Structure it next."
-              icon={<Lightbulb className="h-5 w-5" />}
-            />
-            <QuickAction
-              to="/train/new"
-              title="Pitch arena"
-              body="Pick a persona. Defend your thesis."
-              icon={<Mic className="h-5 w-5" />}
-            />
-            <QuickAction
-              to="/learning"
-              title="Founder library"
-              body="TAM/SAM/SOM, validation, pitch structure."
-              icon={<Sparkles className="h-5 w-5" />}
-            />
-          </div>
+          <Card>
+            <CardContent className="p-6">
+              <SectionHeading
+                title="Quick paths"
+                description="Jump straight to where work happens."
+              />
+              <div className="space-y-3">
+                <QuickAction
+                  to="/ideas"
+                  title="New startup idea"
+                  body="Drop the rough version. Structure it next."
+                  icon={<Lightbulb className="h-5 w-5" />}
+                />
+                <QuickAction
+                  to="/train/new"
+                  title="Pitch arena"
+                  body="Pick a persona. Defend your thesis."
+                  icon={<Mic className="h-5 w-5" />}
+                />
+                <QuickAction
+                  to="/learning"
+                  title="Founder library"
+                  body="TAM/SAM/SOM, validation, pitch structure."
+                  icon={<Sparkles className="h-5 w-5" />}
+                />
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </PageContainer>

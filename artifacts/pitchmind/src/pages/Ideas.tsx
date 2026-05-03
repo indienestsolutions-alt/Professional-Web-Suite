@@ -112,11 +112,11 @@ export default function IdeasPage() {
                   <div className="flex items-center justify-between mb-1.5">
                     <Label htmlFor="raw">Describe your idea</Label>
                     <span className={`text-xs font-mono ${
-                      rawText.trim().split(/\s+/).filter(Boolean).length >= 150
+                      rawText.trim().length >= 150
                         ? "text-emerald-600"
                         : "text-muted-foreground"
                     }`}>
-                      {rawText.trim().split(/\s+/).filter(Boolean).length} / 150 words min
+                      {rawText.trim().length} / 150 chars min
                     </span>
                   </div>
                   <Textarea
@@ -124,18 +124,18 @@ export default function IdeasPage() {
                     rows={8}
                     value={rawText}
                     onChange={(e) => setRawText(e.target.value)}
-                    placeholder={`Describe your idea in detail — minimum 150 words.\n\nCover:\n• What problem does it solve, and who faces it?\n• What exactly does your product do?\n• Who will pay for it and why?\n• What makes you different from existing solutions?\n\nThe more detail you give, the sharper the AI analysis will be.`}
+                    placeholder="What problem does it solve? Who has it? What does your product do, and why can't they just use something that already exists?"
                     className="mt-0 resize-none"
                     data-testid="input-idea-raw"
                   />
-                  {rawText.trim().split(/\s+/).filter(Boolean).length < 150 && rawText.length > 10 && (
+                  {rawText.trim().length < 150 && rawText.length > 10 && (
                     <p className="text-xs text-amber-600 mt-1.5">
-                      Add {150 - rawText.trim().split(/\s+/).filter(Boolean).length} more words — the AI needs enough detail to give you real feedback.
+                      {150 - rawText.trim().length} more characters needed — give the AI enough to work with.
                     </p>
                   )}
-                  {rawText.trim().split(/\s+/).filter(Boolean).length >= 150 && (
+                  {rawText.trim().length >= 150 && (
                     <p className="text-xs text-emerald-600 mt-1.5">
-                      ✓ Good detail — the AI can work with this.
+                      Good — the AI has enough detail to structure this.
                     </p>
                   )}
                 </div>
@@ -153,7 +153,7 @@ export default function IdeasPage() {
                   disabled={
                     create.isPending ||
                     title.trim().length === 0 ||
-                    rawText.trim().split(/\s+/).filter(Boolean).length < 150
+                    rawText.trim().length < 150
                   }
                   data-testid="submit-idea"
                 >
