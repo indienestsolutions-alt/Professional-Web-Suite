@@ -506,8 +506,8 @@ export default function LandingPage() {
             title="Free to start. Always."
             description="Pro unlocks deeper analysis, more personas, and unlimited sessions when you're ready."
           />
-          <div className="mt-12 grid md:grid-cols-2 gap-6">
-            <div className="rounded-2xl border border-border p-8 bg-background">
+          <div className="mt-12 grid md:grid-cols-2 gap-6 items-stretch">
+            <div className="flex flex-col rounded-2xl border border-border p-8 bg-background">
               <div className="font-mono text-xs uppercase tracking-widest text-muted-foreground">
                 Founder
               </div>
@@ -517,15 +517,15 @@ export default function LandingPage() {
               <p className="mt-2 text-muted-foreground text-sm">
                 Everything you need to ship your first real pitch.
               </p>
-              <ul className="mt-6 space-y-2 text-sm">
+              <ul className="mt-6 space-y-2.5 text-sm flex-1">
                 {[
                   "Unlimited ideas, structuring, and decks",
                   "All three investor personas",
                   "Live mistake analysis after every session",
                   "Founder learning library",
                 ].map((f) => (
-                  <li key={f} className="flex gap-2">
-                    <Check className="h-4 w-4 text-primary mt-1 shrink-0" />
+                  <li key={f} className="flex gap-2.5">
+                    <Check className="h-4 w-4 text-primary mt-0.5 shrink-0" />
                     {f}
                   </li>
                 ))}
@@ -534,12 +534,12 @@ export default function LandingPage() {
                 Start free
               </Button>
             </div>
-            <div className="relative rounded-2xl border-2 border-primary p-8 bg-background">
+            <div className="relative flex flex-col rounded-2xl border-2 border-primary p-8 bg-background">
               <div className="absolute -top-3 right-6 px-3 py-1 rounded-full bg-primary text-primary-foreground text-xs font-mono uppercase tracking-widest">
                 Coming soon
               </div>
               <div className="font-mono text-xs uppercase tracking-widest text-primary">
-                Operator
+                Pro
               </div>
               <div className="mt-3 font-display text-5xl font-semibold">
                 $9
@@ -550,16 +550,16 @@ export default function LandingPage() {
               <p className="mt-2 text-muted-foreground text-sm">
                 For founders running pitches every week.
               </p>
-              <ul className="mt-6 space-y-2 text-sm">
+              <ul className="mt-6 space-y-2.5 text-sm flex-1">
                 {[
+                  "Everything in Founder, plus:",
                   "Custom investor personas you design",
                   "Voice-mode pitch sessions (beta)",
                   "Cohort and team progress dashboards",
-                  "Priority deck export and share links",
-                ].map((f) => (
-                  <li key={f} className="flex gap-2">
-                    <Check className="h-4 w-4 text-primary mt-1 shrink-0" />
-                    {f}
+                ].map((f, i) => (
+                  <li key={f} className="flex gap-2.5">
+                    <Check className={`h-4 w-4 mt-0.5 shrink-0 ${i === 0 ? "text-muted-foreground" : "text-primary"}`} />
+                    <span className={i === 0 ? "text-muted-foreground" : ""}>{f}</span>
                   </li>
                 ))}
               </ul>
