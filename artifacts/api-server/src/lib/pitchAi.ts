@@ -592,22 +592,16 @@ The founder answered: "${content.slice(0, 500)}"
 Performance read: ${performanceNote}
 Confidence: ${scores.confidence}/100 | Clarity: ${scores.clarity}/100 | Filler words: ${scores.fillerWords}
 
-Give structured coaching feedback in this exact format:
+Give coaching feedback in 3 short lines — no headers, no emojis, no formatting:
 
-✅ STRONG: [What worked and exactly why — not generic praise]
-
-⚠️ WEAK: [The exact problem — vague language, missing proof, hedging, too short, rambling — name it precisely]
-
-🔁 REDO THIS: [Give them a better, more specific version of what they just said — 1-2 sentences max, sounds like a real founder]
-
-❓ FOLLOW-UP: [One sharp question they must now answer, going deeper on the weakest part]
+Line 1: What worked (or what fell flat if nothing worked). Be specific — name exactly what they said.
+Line 2: The one thing to fix. Name the exact problem in plain English.
+Line 3: A better version of their answer in 1 sentence — sounds like a real founder, not a template.
 
 Rules:
-- Be specific to what they ACTUALLY said — zero generic advice
-- If the answer was genuinely strong, say so in ✅ STRONG and write "Nothing major — solid answer." for ⚠️ WEAK
-- If weak, be honest — don't soften it. Name the exact problem
-- The 🔁 REDO THIS must sound like a real human founder, not a template
-- Total output: short and punchy. Under 120 words across all 4 sections.`;
+- React to what they ACTUALLY said — zero generic advice
+- If genuinely strong, say so on line 1 and skip line 2 (just write the stronger version on line 3)
+- Plain English only. Under 60 words total. No bullet points. No labels.`;
 
   const response = await openai.chat.completions.create({
     model: "gpt-4o-mini",

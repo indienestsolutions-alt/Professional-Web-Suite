@@ -1,5 +1,5 @@
-import { useEffect, useState, useRef } from "react";
-import { motion, useScroll, useTransform, AnimatePresence } from "framer-motion";
+import { useEffect, useState } from "react";
+import { motion, useScroll, useTransform } from "framer-motion";
 import { useAuth } from "@workspace/replit-auth-web";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -10,14 +10,10 @@ import {
   Presentation,
   Mic,
   Users,
-  Compass,
-  GraduationCap,
-  LineChart,
   Check,
   Quote,
   Zap,
   Target,
-  TrendingUp,
   ChevronRight,
 } from "lucide-react";
 
@@ -34,49 +30,18 @@ const TICKER_QUESTIONS = [
   "Marcus: Your biggest competitor just raised $10M. Your move?",
 ];
 
-const LIVE_SESSION = [
-  { role: "system", text: "Welcome to PitchMind AI. I'm not here to tell you your idea is great. I'm here to make sure an investor believes it is." },
-  { role: "investor", who: "Marcus, Aggressive VC", text: "You have 60 seconds. Tell me why this wins. Go." },
-  { role: "user", who: "You", text: "We're a pitch coaching platform that turns student founders into investor-ready entrepreneurs through AI-powered training — before they step into a real room." },
-  { role: "coach", text: "✅ STRONG: Clear, specific, no fluff — you answered the question.\n⚠️ WEAK: '60 seconds' means energy. You were calm when you should sound inevitable.\n🔁 REDO THIS: 'We're the only tool that puts you in front of a brutal investor before you meet a real one — and the data proves it closes the gap.'\n❓ FOLLOW-UP: What's your revenue in 18 months? Walk me through the math." },
-  { role: "investor", who: "Marcus, Aggressive VC", text: "Revenue. 18 months. Numbers." },
-];
-
 export default function LandingPage() {
   const { isAuthenticated, login } = useAuth();
   const [, setLocation] = useLocation();
   const [scrolled, setScrolled] = useState(false);
   const { scrollYProgress } = useScroll();
   const heroY = useTransform(scrollYProgress, [0, 0.3], [0, -60]);
-  const [sessionStep, setSessionStep] = useState(0);
-  const [isTyping, setIsTyping] = useState(false);
-  const sessionRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 12);
     window.addEventListener("scroll", onScroll);
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
-
-  useEffect(() => {
-    const advance = () => {
-      setIsTyping(true);
-      sessionRef.current = setTimeout(() => {
-        setIsTyping(false);
-        setSessionStep((s) => {
-          const next = s + 1;
-          if (next < LIVE_SESSION.length) {
-            sessionRef.current = setTimeout(advance, 1800);
-          } else {
-            sessionRef.current = setTimeout(() => setSessionStep(0), 3500);
-          }
-          return next;
-        });
-      }, 900);
-    };
-    sessionRef.current = setTimeout(advance, 1200);
-    return () => { if (sessionRef.current) clearTimeout(sessionRef.current); };
-  }, [sessionStep === 0 ? sessionStep : undefined]);
 
   const goCTA = () => {
     if (isAuthenticated) setLocation("/dashboard");
@@ -114,172 +79,76 @@ export default function LandingPage() {
       </header>
 
       {/* HERO */}
-      <section className="relative pt-28 pb-16 md:pt-36 md:pb-20 overflow-hidden">
-        <div className="absolute inset-0 pm-grid-bg opacity-50 pointer-events-none" />
-        <motion.div
-          aria-hidden
-          className="absolute -top-48 -left-48 h-[700px] w-[700px] pm-aurora pointer-events-none"
-          animate={{ rotate: [0, 12, 0], scale: [1, 1.08, 1] }}
-          transition={{ duration: 22, repeat: Infinity, ease: "easeInOut" }}
-        />
-        <motion.div
-          aria-hidden
-          className="absolute -bottom-32 -right-32 h-[500px] w-[500px] rounded-full bg-accent/10 blur-3xl pointer-events-none"
-          animate={{ scale: [1, 1.15, 1], opacity: [0.3, 0.5, 0.3] }}
-          transition={{ duration: 14, repeat: Infinity }}
-        />
-        <motion.div style={{ y: heroY }} className="relative max-w-7xl mx-auto px-4 md:px-8">
-          <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
-            {/* Left: Copy */}
-            <div>
-              <motion.div
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5 }}
-                className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/8 px-3 py-1 text-xs font-mono uppercase tracking-[0.16em] text-primary"
-              >
-                <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
-                Investors don't fund ideas. They fund people.
-              </motion.div>
-              <motion.h1
-                initial={{ opacity: 0, y: 28 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.65, delay: 0.06 }}
-                className="mt-6 text-5xl md:text-6xl lg:text-7xl font-semibold tracking-tight pm-text-balance leading-[1.02]"
-              >
-                Stop practicing{" "}
-                <span className="relative inline-block">
-                  <span className="relative z-10 text-primary">in the mirror.</span>
-                  <span className="absolute inset-x-0 bottom-1 md:bottom-2 h-3 md:h-4 bg-primary/20 -z-0 -skew-y-1" />
-                </span>
-              </motion.h1>
-              <motion.p
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.65, delay: 0.14 }}
-                className="mt-6 text-lg md:text-xl text-muted-foreground max-w-xl pm-text-balance leading-relaxed"
-              >
-                PitchMind puts you in the room with AI investors who ask the questions you fear — and coaches you through every answer until you're ready for the real thing.
-              </motion.p>
-              <motion.div
-                initial={{ opacity: 0, y: 14 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.22 }}
-                className="mt-8 flex flex-wrap gap-3"
-              >
-                <Button size="lg" className="h-13 px-8 text-base gap-2 shadow-lg shadow-primary/25" onClick={goCTA}>
-                  Start training free <ArrowRight className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="lg"
-                  className="h-13 px-7 text-base"
-                  onClick={() => document.querySelector("#how")?.scrollIntoView({ behavior: "smooth" })}
-                >
-                  See how it works
-                </Button>
-              </motion.div>
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.45 }}
-                className="mt-8 flex flex-wrap items-center gap-6 text-sm text-muted-foreground"
-              >
-                <div className="flex items-center gap-2">
-                  <div className="flex -space-x-2">
-                    {["from-primary to-accent","from-accent to-primary","from-yellow-400 to-primary","from-primary to-pink-400"].map((g, i) => (
-                      <div key={i} className={`h-7 w-7 rounded-full bg-gradient-to-br ${g} ring-2 ring-background`} />
-                    ))}
-                  </div>
-                  <span>Trusted by founders in 14+ countries</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <Zap className="h-3.5 w-3.5 text-primary" />
-                  <span>Free forever. No credit card.</span>
-                </div>
-              </motion.div>
-            </div>
-
-            {/* Right: Animated Live Session */}
-            <motion.div
-              initial={{ opacity: 0, x: 24 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.7, delay: 0.2 }}
-              className="relative"
+      <section className="relative pt-32 pb-20 md:pt-44 md:pb-32 overflow-hidden">
+        <div className="absolute inset-0 pm-grid-bg opacity-60 pointer-events-none" />
+        <div className="absolute -top-40 -left-40 h-[600px] w-[600px] pm-aurora pointer-events-none opacity-60" />
+        <motion.div style={{ y: heroY }} className="relative max-w-5xl mx-auto px-4 md:px-8 text-center">
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/8 px-3 py-1 text-xs font-mono uppercase tracking-[0.16em] text-primary"
+          >
+            <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+            Investors don't fund ideas. They fund people.
+          </motion.div>
+          <motion.h1
+            initial={{ opacity: 0, y: 32 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.06 }}
+            className="mt-6 text-5xl md:text-7xl lg:text-8xl font-semibold tracking-tight leading-[1.02]"
+          >
+            Stop practicing{" "}
+            <span className="relative inline-block">
+              <span className="relative z-10 text-primary">in the mirror.</span>
+              <span className="absolute inset-x-0 bottom-1 md:bottom-2 h-3 md:h-4 bg-primary/20 -z-0 -skew-y-1" />
+            </span>
+          </motion.h1>
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.65, delay: 0.14 }}
+            className="mt-6 text-lg md:text-2xl text-muted-foreground max-w-3xl mx-auto pm-text-balance leading-relaxed"
+          >
+            PitchMind puts you in the room with AI investors who ask the questions you fear — and coaches you through every answer until you're ready for the real thing.
+          </motion.p>
+          <motion.div
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.22 }}
+            className="mt-10 flex flex-wrap gap-3 justify-center"
+          >
+            <Button size="lg" className="h-12 px-8 text-base gap-2 shadow-lg shadow-primary/25" onClick={goCTA}>
+              Start training free <ArrowRight className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="lg"
+              className="h-12 px-7 text-base"
+              onClick={() => document.querySelector("#how")?.scrollIntoView({ behavior: "smooth" })}
             >
-              <div className="absolute -inset-4 pm-aurora opacity-30 rounded-3xl pointer-events-none blur-xl" />
-              <div className="relative rounded-2xl border border-border bg-card shadow-2xl overflow-hidden">
-                <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-muted/30">
-                  <div className="h-2.5 w-2.5 rounded-full bg-destructive/70" />
-                  <div className="h-2.5 w-2.5 rounded-full bg-yellow-400/70" />
-                  <div className="h-2.5 w-2.5 rounded-full bg-emerald-400/70" />
-                  <span className="ml-2 font-mono text-[10px] text-muted-foreground uppercase tracking-widest">Live Session — Marcus, Aggressive VC</span>
-                  <span className="ml-auto flex items-center gap-1.5 font-mono text-[10px] text-primary">
-                    <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
-                    LIVE
-                  </span>
-                </div>
-                <div className="p-4 space-y-3 min-h-[340px]">
-                  <AnimatePresence mode="popLayout">
-                    {LIVE_SESSION.slice(0, sessionStep).map((msg, i) => (
-                      <motion.div
-                        key={i}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.35 }}
-                      >
-                        {msg.role === "system" && (
-                          <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2.5 text-xs text-primary leading-relaxed">
-                            {msg.text}
-                          </div>
-                        )}
-                        {msg.role === "investor" && (
-                          <div className="rounded-lg border border-border bg-secondary/40 px-3 py-2.5">
-                            <div className="font-mono text-[9px] uppercase tracking-widest text-muted-foreground mb-1">{msg.who}</div>
-                            <p className="text-sm text-foreground font-medium">{msg.text}</p>
-                          </div>
-                        )}
-                        {msg.role === "user" && (
-                          <div className="ml-4 rounded-lg bg-foreground text-background px-3 py-2.5">
-                            <div className="font-mono text-[9px] uppercase tracking-widest text-background/60 mb-1">{msg.who}</div>
-                            <p className="text-sm">{msg.text}</p>
-                          </div>
-                        )}
-                        {msg.role === "coach" && (
-                          <div className="rounded-lg border border-primary/30 bg-primary/8 px-3 py-2.5">
-                            <div className="font-mono text-[9px] uppercase tracking-widest text-primary mb-1.5">PitchMind Coach</div>
-                            <p className="text-xs text-foreground leading-relaxed whitespace-pre-line">{msg.text}</p>
-                          </div>
-                        )}
-                      </motion.div>
-                    ))}
-                  </AnimatePresence>
-                  {isTyping && sessionStep < LIVE_SESSION.length && (
-                    <motion.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      className="flex items-center gap-1.5 px-1"
-                    >
-                      {[0, 1, 2].map((i) => (
-                        <motion.div
-                          key={i}
-                          className="h-1.5 w-1.5 rounded-full bg-muted-foreground/50"
-                          animate={{ opacity: [0.3, 1, 0.3] }}
-                          transition={{ duration: 0.8, delay: i * 0.15, repeat: Infinity }}
-                        />
-                      ))}
-                    </motion.div>
-                  )}
-                </div>
-                <div className="px-4 pb-4">
-                  <div className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-muted-foreground">
-                    <span className="flex-1">Type your answer or speak…</span>
-                    <Mic className="h-3.5 w-3.5 text-primary" />
-                  </div>
-                </div>
+              See how it works
+            </Button>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.45 }}
+            className="mt-10 flex flex-wrap items-center justify-center gap-6 text-sm text-muted-foreground"
+          >
+            <div className="flex items-center gap-2">
+              <div className="flex -space-x-2">
+                {["from-primary to-accent","from-accent to-primary","from-yellow-400 to-primary","from-primary to-pink-400"].map((g, i) => (
+                  <div key={i} className={`h-7 w-7 rounded-full bg-gradient-to-br ${g} ring-2 ring-background`} />
+                ))}
               </div>
-            </motion.div>
-          </div>
+              <span>Trusted by founders in 14+ countries</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Zap className="h-3.5 w-3.5 text-primary" />
+              <span>Free forever. No credit card.</span>
+            </div>
+          </motion.div>
         </motion.div>
       </section>
 
@@ -407,16 +276,11 @@ export default function LandingPage() {
             title="Every tool a first-time founder actually needs."
             description="Not a slide deck app. Not a chat bot. A complete system to go from idea to investor-ready."
           />
-          <div className="mt-14 grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="mt-14 grid md:grid-cols-2 lg:grid-cols-4 gap-5">
             <FeatureCard icon={Lightbulb} title="Idea structuring" body="Drop the raw thought. Watch it become a defensible 6-section canvas in seconds — problem, solution, market, model, moat, audience." tone="primary" />
             <FeatureCard icon={Presentation} title="Auto pitch deck" body="Nine slides, in the order investors actually read them, with bullets you can say out loud without sounding like a brochure." tone="accent" />
             <FeatureCard icon={Mic} title="AI pitch arena" body="You speak. The investor pushes back immediately. No pauses. No mercy. Your confidence and clarity scored on every single turn." tone="primary" />
             <FeatureCard icon={Users} title="3 investor personas" body="Marcus (The Shark), Priya (The Believer), Daniel (The Devil's Advocate). Three styles. Three levels of pressure." tone="accent" />
-            <FeatureCard icon={Compass} title="Mistake analysis" body="End of every session: what slipped, exactly why, and a specific drill to fix it before next time." tone="primary" />
-            <FeatureCard icon={GraduationCap} title="Founder library" body="TAM/SAM/SOM. Validation frameworks. Fundraising playbooks. Short, sharp, written for people who learn by doing." tone="accent" />
-            <FeatureCard icon={LineChart} title="Progress tracking" body="Confidence and clarity graphed over time — so you see the growth, not just feel it." tone="primary" />
-            <FeatureCard icon={TrendingUp} title="Investor readiness score" body="A single number per session that tells you exactly where you stand before you walk into a real room." tone="accent" />
-            <FeatureCard icon={Zap} title="Voice mode" body="Practice speaking out loud. Your answer transcribed, scored, and coached — just like the real thing." tone="primary" />
           </div>
         </div>
       </section>
@@ -618,11 +482,10 @@ export default function LandingPage() {
                 <Bubble who="You" tone="user">
                   We own a workflow incumbents have ignored because the segment is too small for them. By the time it's worth their attention, we'll have the data moat.
                 </Bubble>
-                <div className="rounded-lg border border-primary/25 bg-primary/5 p-3 text-xs leading-relaxed">
-                  <div className="font-semibold text-primary mb-1.5">PitchMind Coach</div>
-                  <div>✅ STRONG: Specific claim — "data moat" is something real.</div>
-                  <div className="mt-1">⚠️ WEAK: You didn't name the segment. Investors need a specific market to visualize it.</div>
-                  <div className="mt-1">🔁 REDO THIS: Name the segment and give a number — "SMB supply chain managers — a $3B niche the giants actively ignore."</div>
+                <div className="rounded-lg border border-primary/25 bg-primary/5 p-3 text-xs leading-relaxed space-y-1.5">
+                  <div className="font-semibold text-primary">PitchMind Coach</div>
+                  <p className="text-foreground">Good instinct — "data moat" is specific and real. But you didn't name the segment, so investors can't picture the market.</p>
+                  <p className="text-muted-foreground italic">"SMB supply chain managers — a $3B niche the giants actively ignore. By the time they want it, we'll have the lock-in."</p>
                 </div>
               </div>
             </div>
