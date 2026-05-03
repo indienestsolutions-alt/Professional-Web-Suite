@@ -103,6 +103,7 @@ export default function TrainSessionPage({ id }: { id: string }) {
         return () => clearTimeout(timer);
       }
     }
+    return undefined;
   }, [sessionQ.data?.status, id]);
 
   // Unlock the audio element with a silent play on first user interaction
