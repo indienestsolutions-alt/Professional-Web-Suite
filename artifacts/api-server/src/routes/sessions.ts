@@ -184,7 +184,7 @@ router.post("/sessions", async (req: Request, res: Response): Promise<void> => {
     {
       sessionId: session.id,
       role: "system",
-      content: `Welcome to PitchMind AI.\n\nHere's the truth most pitch coaches won't tell you:\n\nInvestors don't fund ideas. They fund people.\n\nA great founder with an average idea gets a meeting. An average founder with a great idea gets a polite no.\n\nSo we're going to work on both — your idea AND you as a founder.\n\nYou're now in the room with ${persona.name}. Take a breath — then answer their first question.`,
+      content: `Welcome to PitchMind AI.\n\nI'm not here to tell you your idea is great.\nI'm here to make sure an investor believes it is.\n\nYou're now in the room with ${persona.name}. Answer their first question.`,
     },
     {
       sessionId: session.id,
