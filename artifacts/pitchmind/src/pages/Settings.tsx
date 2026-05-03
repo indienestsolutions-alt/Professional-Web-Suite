@@ -1,4 +1,4 @@
-import { useAuth } from "@workspace/replit-auth-web";
+import { useUser, useClerk } from "@clerk/react";
 import { PageContainer, PageHeader } from "@/components/AppShell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -7,7 +7,13 @@ import { LogOut, Settings as SettingsIcon, ShieldCheck } from "lucide-react";
 import { initials } from "@/lib/format";
 
 export default function SettingsPage() {
-  const { user, logout } = useAuth();
+  const { user } = useUser();
+  const { signOut } = useClerk();
+
+  const firstName = user?.firstName ?? null;
+  const lastName = user?.lastName ?? null;
+  const email = user?.primaryEmailAddress?.emailAddress ?? null;
+  const imageUrl = user?.imageUrl ?? undefined;
 
   return (
     <PageContainer>
@@ -26,24 +32,24 @@ export default function SettingsPage() {
           <CardContent className="p-6">
             <div className="flex items-center gap-4">
               <Avatar className="h-16 w-16">
-                <AvatarImage src={user?.profileImageUrl ?? undefined} />
+                <AvatarImage src={imageUrl} />
                 <AvatarFallback className="bg-primary text-primary-foreground text-lg">
-                  {initials(user?.firstName, user?.lastName)}
+                  {initials(firstName, lastName)}
                 </AvatarFallback>
               </Avatar>
               <div>
                 <div className="font-display text-xl font-semibold">
-                  {user?.firstName ?? ""} {user?.lastName ?? ""}
+                  {firstName ?? ""} {lastName ?? ""}
                 </div>
                 <div className="text-sm text-muted-foreground">
-                  {user?.email ?? "No email on file"}
+                  {email ?? "No email on file"}
                 </div>
               </div>
             </div>
             <div className="mt-6 grid sm:grid-cols-2 gap-4">
-              <Field label="First name" value={user?.firstName ?? "—"} />
-              <Field label="Last name" value={user?.lastName ?? "—"} />
-              <Field label="Email" value={user?.email ?? "—"} />
+              <Field label="First name" value={firstName ?? "—"} />
+              <Field label="Last name" value={lastName ?? "—"} />
+              <Field label="Email" value={email ?? "—"} />
               <Field label="User ID" value={user?.id ?? "—"} mono />
             </div>
           </CardContent>
@@ -67,7 +73,7 @@ export default function SettingsPage() {
             <Button
               variant="outline"
               className="mt-5 w-full"
-              onClick={() => logout()}
+              onClick={() => signOut()}
               data-testid="logout-button"
             >
               <LogOut className="h-4 w-4 mr-2" /> Log out

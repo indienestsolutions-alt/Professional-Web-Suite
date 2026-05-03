@@ -1,19 +1,19 @@
 import { useEffect, type ReactNode } from "react";
 import { useLocation } from "wouter";
-import { useAuth } from "@workspace/replit-auth-web";
+import { useUser } from "@clerk/react";
 import { Spinner } from "@/components/ui/spinner";
 
 export function AuthGate({ children }: { children: ReactNode }) {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isSignedIn, isLoaded } = useUser();
   const [, setLocation] = useLocation();
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      setLocation("/login");
+    if (isLoaded && !isSignedIn) {
+      setLocation("/sign-in");
     }
-  }, [isAuthenticated, isLoading, setLocation]);
+  }, [isSignedIn, isLoaded, setLocation]);
 
-  if (isLoading) {
+  if (!isLoaded) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Spinner className="h-8 w-8 text-primary" />
@@ -21,7 +21,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
     );
   }
 
-  if (!isAuthenticated) return null;
+  if (!isSignedIn) return null;
 
   return <>{children}</>;
 }

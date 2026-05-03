@@ -1,6 +1,6 @@
 import { type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
-import { useAuth } from "@workspace/replit-auth-web";
+import { useUser, useClerk } from "@clerk/react";
 import {
   LayoutDashboard,
   Lightbulb,
@@ -57,8 +57,14 @@ const NAV: NavItem[] = [
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const { user, logout } = useAuth();
+  const { user } = useUser();
+  const { signOut } = useClerk();
   const [location] = useLocation();
+
+  const firstName = user?.firstName ?? null;
+  const lastName = user?.lastName ?? null;
+  const email = user?.primaryEmailAddress?.emailAddress ?? null;
+  const imageUrl = user?.imageUrl ?? undefined;
 
   return (
     <div className="min-h-screen flex bg-background text-foreground">
@@ -127,17 +133,17 @@ export function AppShell({ children }: { children: ReactNode }) {
             <DropdownMenuTrigger asChild>
               <button className="w-full flex items-center gap-3 px-2 py-2 rounded-md hover:bg-sidebar-accent transition-colors text-left">
                 <Avatar className="h-9 w-9 ring-2 ring-sidebar-border">
-                  <AvatarImage src={user?.profileImageUrl ?? undefined} />
+                  <AvatarImage src={imageUrl} />
                   <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                    {initials(user?.firstName, user?.lastName)}
+                    {initials(firstName, lastName)}
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">
-                    {user?.firstName ?? "Founder"}
+                    {firstName ?? "Founder"}
                   </p>
                   <p className="text-xs text-sidebar-foreground/60 truncate">
-                    {user?.email ?? "Signed in"}
+                    {email ?? "Signed in"}
                   </p>
                 </div>
               </button>
@@ -150,7 +156,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <Settings className="mr-2 h-4 w-4" /> Settings
                 </DropdownMenuItem>
               </Link>
-              <DropdownMenuItem onClick={() => logout()}>
+              <DropdownMenuItem onClick={() => signOut()}>
                 <LogOut className="mr-2 h-4 w-4" /> Log out
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -163,7 +169,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         {/* Mobile top header */}
         <header className="md:hidden flex items-center justify-between px-4 py-3 border-b border-border bg-card shrink-0">
           <Wordmark />
-          <Button variant="ghost" size="icon" onClick={() => logout()}>
+          <Button variant="ghost" size="icon" onClick={() => signOut()}>
             <LogOut className="h-4 w-4" />
           </Button>
         </header>
