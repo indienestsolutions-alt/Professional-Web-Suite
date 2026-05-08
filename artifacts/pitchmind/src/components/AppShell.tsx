@@ -11,7 +11,6 @@ import {
 } from "lucide-react";
 import { Wordmark } from "./Logo";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
 import { initials } from "@/lib/format";
 import {
   DropdownMenu,
@@ -63,8 +62,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen flex bg-background text-foreground">
       {/* ── Desktop sidebar ── */}
-      <aside className="hidden md:flex w-64 shrink-0 flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border">
-        <div className="px-6 py-6">
+      <aside className="hidden md:flex w-60 shrink-0 flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border">
+        <div className="px-5 py-5">
           <Link href="/dashboard">
             <a className="inline-flex items-center gap-2">
               <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-sidebar-foreground text-sidebar">
@@ -86,7 +85,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </Link>
         </div>
 
-        <nav className="flex-1 px-3 space-y-1">
+        <nav className="flex-1 px-3 space-y-0.5">
           {NAV.map((item) => {
             const active = item.match(location);
             const Icon = item.icon;
@@ -99,7 +98,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                       : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                   }`}
                 >
-                  <Icon className="h-4 w-4" />
+                  <Icon className="h-4 w-4 shrink-0" />
                   {item.label}
                 </a>
               </Link>
@@ -107,7 +106,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           })}
         </nav>
 
-        <div className="px-3 py-3 border-t border-sidebar-border">
+        <div className="px-3 pb-1 border-t border-sidebar-border pt-2">
           <Link href="/settings">
             <a
               className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors ${
@@ -116,7 +115,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
               }`}
             >
-              <Settings className="h-4 w-4" />
+              <Settings className="h-4 w-4 shrink-0" />
               Settings
             </a>
           </Link>
@@ -126,7 +125,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="w-full flex items-center gap-3 px-2 py-2 rounded-md hover:bg-sidebar-accent transition-colors text-left">
-                <Avatar className="h-9 w-9 ring-2 ring-sidebar-border">
+                <Avatar className="h-8 w-8 ring-2 ring-sidebar-border shrink-0">
                   <AvatarImage src={user?.profileImageUrl ?? undefined} />
                   <AvatarFallback className="bg-primary text-primary-foreground text-xs">
                     {initials(user?.firstName, user?.lastName)}
@@ -142,7 +141,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 </div>
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuContent align="end" className="w-52">
               <DropdownMenuLabel>Account</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <Link href="/settings">
@@ -163,14 +162,55 @@ export function AppShell({ children }: { children: ReactNode }) {
         {/* Mobile top header */}
         <header className="md:hidden flex items-center justify-between px-4 py-3 border-b border-border bg-card shrink-0">
           <Wordmark />
-          <Button variant="ghost" size="icon" onClick={() => logout()}>
-            <LogOut className="h-4 w-4" />
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="flex items-center gap-2 rounded-md hover:bg-muted px-2 py-1.5 transition-colors">
+                <Avatar className="h-7 w-7">
+                  <AvatarImage src={user?.profileImageUrl ?? undefined} />
+                  <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+                    {initials(user?.firstName, user?.lastName)}
+                  </AvatarFallback>
+                </Avatar>
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuLabel>{user?.firstName ?? "Founder"}</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <Link href="/settings">
+                <DropdownMenuItem>
+                  <Settings className="mr-2 h-4 w-4" /> Settings
+                </DropdownMenuItem>
+              </Link>
+              <DropdownMenuItem onClick={() => logout()}>
+                <LogOut className="mr-2 h-4 w-4" /> Log out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </header>
 
-        <main className="flex-1 min-w-0 overflow-x-hidden">
+        <main className="flex-1 min-w-0 overflow-x-hidden pb-16 md:pb-0">
           {children}
         </main>
+
+        {/* Mobile bottom navigation */}
+        <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-card border-t border-border flex items-stretch safe-area-inset-bottom">
+          {NAV.map((item) => {
+            const active = item.match(location);
+            const Icon = item.icon;
+            return (
+              <Link key={item.href} href={item.href}>
+                <a
+                  className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-2 min-w-0 transition-colors ${
+                    active ? "text-primary" : "text-muted-foreground"
+                  }`}
+                >
+                  <Icon className="h-5 w-5 shrink-0" />
+                  <span className="text-[10px] font-mono tracking-wide">{item.label}</span>
+                </a>
+              </Link>
+            );
+          })}
+        </nav>
       </div>
     </div>
   );
@@ -188,18 +228,18 @@ export function PageHeader({
   actions?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-4 mb-6 md:mb-8">
-      <div className="space-y-2 max-w-3xl">
+    <div className="flex flex-col gap-3 mb-6 md:mb-8">
+      <div className="space-y-1.5 max-w-3xl">
         {eyebrow && (
           <div className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.16em] text-muted-foreground font-mono">
             {eyebrow}
           </div>
         )}
-        <h1 className="text-2xl md:text-4xl font-semibold tracking-tight pm-text-balance">
+        <h1 className="text-2xl md:text-3xl font-semibold tracking-tight pm-text-balance">
           {title}
         </h1>
         {description && (
-          <p className="text-muted-foreground text-sm md:text-lg pm-text-balance">
+          <p className="text-muted-foreground text-sm md:text-base pm-text-balance">
             {description}
           </p>
         )}
@@ -215,7 +255,7 @@ export function PageHeader({
 
 export function PageContainer({ children }: { children: ReactNode }) {
   return (
-    <div className="px-3 md:px-8 lg:px-12 py-6 md:py-10 max-w-7xl mx-auto w-full overflow-x-hidden">
+    <div className="px-4 md:px-8 lg:px-12 py-5 md:py-8 max-w-7xl mx-auto w-full overflow-x-hidden">
       {children}
     </div>
   );

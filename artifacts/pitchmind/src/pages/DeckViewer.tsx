@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Link, useLocation } from "wouter";
 import {
   useGetDeck,
@@ -16,6 +16,7 @@ import {
   ArrowLeft,
   Download,
   Maximize2,
+  Minimize2,
   Mic,
   X,
 } from "lucide-react";
@@ -34,15 +35,15 @@ const LAYOUT_LABEL: Record<string, string> = {
 };
 
 const LAYOUT_ACCENT: Record<string, { gradient: string; bar: string; badge: string }> = {
-  title: { gradient: "from-primary/20 via-primary/5 to-transparent", bar: "bg-primary", badge: "bg-primary/15 text-primary" },
-  problem: { gradient: "from-red-500/15 via-red-500/5 to-transparent", bar: "bg-red-500", badge: "bg-red-500/15 text-red-500" },
+  title:    { gradient: "from-primary/20 via-primary/5 to-transparent",      bar: "bg-primary",      badge: "bg-primary/15 text-primary" },
+  problem:  { gradient: "from-red-500/15 via-red-500/5 to-transparent",      bar: "bg-red-500",      badge: "bg-red-500/15 text-red-500" },
   solution: { gradient: "from-emerald-500/15 via-emerald-500/5 to-transparent", bar: "bg-emerald-500", badge: "bg-emerald-500/15 text-emerald-500" },
-  market: { gradient: "from-blue-500/15 via-blue-500/5 to-transparent", bar: "bg-blue-500", badge: "bg-blue-500/15 text-blue-500" },
-  business: { gradient: "from-purple-500/15 via-purple-500/5 to-transparent", bar: "bg-purple-500", badge: "bg-purple-500/15 text-purple-500" },
-  edge: { gradient: "from-amber-500/15 via-amber-500/5 to-transparent", bar: "bg-amber-500", badge: "bg-amber-500/15 text-amber-500" },
-  demo: { gradient: "from-cyan-500/15 via-cyan-500/5 to-transparent", bar: "bg-cyan-500", badge: "bg-cyan-500/15 text-cyan-500" },
-  traction: { gradient: "from-indigo-500/15 via-indigo-500/5 to-transparent", bar: "bg-indigo-500", badge: "bg-indigo-500/15 text-indigo-500" },
-  ask: { gradient: "from-primary/20 via-primary/5 to-transparent", bar: "bg-primary", badge: "bg-primary/15 text-primary" },
+  market:   { gradient: "from-blue-500/15 via-blue-500/5 to-transparent",    bar: "bg-blue-500",     badge: "bg-blue-500/15 text-blue-500" },
+  business: { gradient: "from-purple-500/15 via-purple-500/5 to-transparent", bar: "bg-purple-500",  badge: "bg-purple-500/15 text-purple-500" },
+  edge:     { gradient: "from-amber-500/15 via-amber-500/5 to-transparent",  bar: "bg-amber-500",    badge: "bg-amber-500/15 text-amber-500" },
+  demo:     { gradient: "from-cyan-500/15 via-cyan-500/5 to-transparent",    bar: "bg-cyan-500",     badge: "bg-cyan-500/15 text-cyan-500" },
+  traction: { gradient: "from-indigo-500/15 via-indigo-500/5 to-transparent", bar: "bg-indigo-500",  badge: "bg-indigo-500/15 text-indigo-500" },
+  ask:      { gradient: "from-primary/20 via-primary/5 to-transparent",      bar: "bg-primary",      badge: "bg-primary/15 text-primary" },
 };
 
 interface DeckSlide {
@@ -61,12 +62,35 @@ export default function DeckViewerPage({ deckId }: { deckId: string }) {
   });
   const [active, setActive] = useState(0);
   const [fullscreen, setFullscreen] = useState(false);
-  const deckRef = useRef<HTMLDivElement>(null);
+
+  const slides = (deckQ.data?.slides ?? []) as DeckSlide[];
+  const total = slides.length;
+
+  const goNext = useCallback(() => setActive((i) => Math.min(total - 1, i + 1)), [total]);
+  const goPrev = useCallback(() => setActive((i) => Math.max(0, i - 1)), []);
+
+  // Keyboard navigation for fullscreen
+  useEffect(() => {
+    if (!fullscreen) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "ArrowRight" || e.key === "ArrowDown" || e.key === " ") {
+        e.preventDefault();
+        goNext();
+      } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+        e.preventDefault();
+        goPrev();
+      } else if (e.key === "Escape") {
+        setFullscreen(false);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [fullscreen, goNext, goPrev]);
 
   const handleDownload = () => {
     if (!deckQ.data) return;
     const deck = deckQ.data;
-    const slides = deck.slides as DeckSlide[];
+    const deckSlides = deck.slides as DeckSlide[];
 
     const htmlContent = `<!DOCTYPE html>
 <html lang="en">
@@ -103,10 +127,9 @@ export default function DeckViewerPage({ deckId }: { deckId: string }) {
   </style>
 </head>
 <body>
-${slides.map((slide, i) => {
+${deckSlides.map((slide, i) => {
   const isCover = slide.layout === "title";
   const accent = LAYOUT_ACCENT[slide.layout] ?? LAYOUT_ACCENT["solution"]!;
-  const accentColor = accent.bar.replace("bg-", "");
   const colors: Record<string, string> = {
     "bg-primary": "#f97316", "bg-red-500": "#ef4444", "bg-emerald-500": "#10b981",
     "bg-blue-500": "#3b82f6", "bg-purple-500": "#a855f7", "bg-amber-500": "#f59e0b",
@@ -118,7 +141,7 @@ ${slides.map((slide, i) => {
     ${isCover ? '<div class="grid-bg"></div>' : ""}
     <div class="accent-strip" style="background: linear-gradient(90deg, ${color}, transparent)"></div>
     <div class="slide-header">
-      <span class="slide-num">${String(i + 1).padStart(2, "0")} / ${String(slides.length).padStart(2, "0")}</span>
+      <span class="slide-num">${String(i + 1).padStart(2, "0")} / ${String(deckSlides.length).padStart(2, "0")}</span>
       <span class="slide-label">${LAYOUT_LABEL[slide.layout] ?? slide.layout}</span>
     </div>
     <div class="slide-body">
@@ -149,7 +172,7 @@ ${slides.map((slide, i) => {
   if (deckQ.isLoading) {
     return (
       <PageContainer>
-        <Skeleton className="h-10 w-1/2 mb-4" />
+        <Skeleton className="h-8 w-1/2 mb-4" />
         <Skeleton className="h-[420px] w-full rounded-xl" />
       </PageContainer>
     );
@@ -157,60 +180,42 @@ ${slides.map((slide, i) => {
 
   const deck = deckQ.data;
   if (!deck) {
-    return (
-      <PageContainer>
-        <p>Deck not found.</p>
-      </PageContainer>
-    );
+    return <PageContainer><p className="text-muted-foreground">Deck not found.</p></PageContainer>;
   }
 
-  const slides = deck.slides as DeckSlide[];
   const slide = slides[active];
-  const total = slides.length;
 
   return (
     <PageContainer>
       <Link href={`/ideas/${deck.ideaId}`}>
-        <a className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-4">
+        <a className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-5">
           <ArrowLeft className="h-4 w-4 mr-1" /> Back to idea
         </a>
       </Link>
 
-      <div className="flex items-end justify-between mb-6 flex-wrap gap-4">
+      <div className="flex items-end justify-between mb-5 flex-wrap gap-4">
         <div className="min-w-0">
           <div className="font-mono text-xs uppercase tracking-[0.2em] text-primary flex items-center gap-1.5">
             <Presentation className="h-3.5 w-3.5" />
-            Investor pitch deck · {total} slides
+            Pitch deck · {total} slides
           </div>
-          <h1 className="font-display text-3xl md:text-4xl font-semibold mt-2 tracking-tight truncate">
+          <h1 className="font-display text-2xl md:text-3xl font-semibold mt-1.5 tracking-tight truncate">
             {deck.title}
           </h1>
           {deck.storyline && (
-            <p className="text-muted-foreground mt-2 max-w-2xl text-sm">{deck.storyline}</p>
+            <p className="text-muted-foreground mt-1 max-w-2xl text-sm">{deck.storyline}</p>
           )}
         </div>
         <div className="flex items-center gap-2 flex-wrap shrink-0">
-          <Button
-            onClick={() => setLocation(`/train/new?ideaId=${deck.ideaId}`)}
-          >
+          <Button onClick={() => setLocation(`/train/new?ideaId=${deck.ideaId}`)}>
             <Mic className="h-3.5 w-3.5 mr-1.5" />
             Practice this pitch
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setFullscreen(true)}
-            title="Fullscreen presentation mode"
-          >
+          <Button variant="outline" size="sm" onClick={() => setFullscreen(true)} title="Fullscreen — use ← → to navigate">
             <Maximize2 className="h-3.5 w-3.5 mr-1" />
             Present
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleDownload}
-            title="Download as HTML — open in browser and print to PDF"
-          >
+          <Button variant="outline" size="sm" onClick={handleDownload} title="Download as HTML — open in browser and print to PDF">
             <Download className="h-3.5 w-3.5 mr-1" />
             Download
           </Button>
@@ -227,19 +232,19 @@ ${slides.map((slide, i) => {
             className="fixed inset-0 z-50 bg-background flex flex-col"
           >
             <div className="flex-1 flex flex-col overflow-hidden min-h-0">
-              <div className="flex items-center justify-between px-6 py-3 border-b border-border bg-background/90 backdrop-blur shrink-0">
+              <div className="flex items-center justify-between px-4 py-2.5 border-b border-border bg-background/90 backdrop-blur shrink-0">
                 <span className="font-mono text-xs uppercase tracking-widest text-muted-foreground">
                   {String(active + 1).padStart(2, "0")} / {String(total).padStart(2, "0")} · {LAYOUT_LABEL[slide.layout] ?? slide.layout}
                 </span>
                 <div className="flex items-center gap-2">
-                  <Button size="sm" variant="outline" onClick={() => setActive((i) => Math.max(0, i - 1))} disabled={active === 0}>
+                  <Button size="sm" variant="outline" onClick={goPrev} disabled={active === 0}>
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
-                  <Button size="sm" variant="outline" onClick={() => setActive((i) => Math.min(total - 1, i + 1))} disabled={active === total - 1}>
+                  <Button size="sm" variant="outline" onClick={goNext} disabled={active === total - 1}>
                     <ChevronRight className="h-4 w-4" />
                   </Button>
                   <Button size="sm" variant="ghost" onClick={() => setFullscreen(false)}>
-                    <X className="h-4 w-4 mr-1" /> Close
+                    <Minimize2 className="h-4 w-4 mr-1" /> Exit
                   </Button>
                 </div>
               </div>
@@ -250,30 +255,24 @@ ${slides.map((slide, i) => {
                     initial={{ opacity: 0, x: 30 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -30 }}
-                    transition={{ duration: 0.18 }}
+                    transition={{ duration: 0.16 }}
                     className="h-full"
                   >
-                    <SlideRender
-                      slide={slide}
-                      index={active}
-                      total={total}
-                      fullscreen
-                    />
+                    <SlideRender slide={slide} index={active} total={total} fullscreen />
                   </motion.div>
                 </AnimatePresence>
               </div>
             </div>
-            {/* Keyboard hint */}
-            <div className="shrink-0 text-center py-2 text-xs text-muted-foreground font-mono">
-              ← → arrow keys to navigate
+            <div className="shrink-0 text-center py-1.5 text-xs text-muted-foreground/50 font-mono">
+              ← → arrow keys · Space · Esc to exit
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      <div className="grid lg:grid-cols-[280px_1fr] gap-6" ref={deckRef}>
+      <div className="grid lg:grid-cols-[260px_1fr] gap-5">
         {/* Slide nav */}
-        <div className="space-y-1.5 lg:max-h-[640px] overflow-y-auto pr-1">
+        <div className="space-y-1.5 lg:max-h-[600px] overflow-y-auto pr-1">
           {slides.map((s, i) => {
             const acc = LAYOUT_ACCENT[s.layout] ?? LAYOUT_ACCENT["solution"]!;
             return (
@@ -309,18 +308,14 @@ ${slides.map((slide, i) => {
             {slide && (
               <motion.div
                 key={active}
-                initial={{ opacity: 0, x: 20 }}
+                initial={{ opacity: 0, x: 16 }}
                 animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.2 }}
+                exit={{ opacity: 0, x: -16 }}
+                transition={{ duration: 0.18 }}
               >
                 <Card className="overflow-hidden shadow-lg">
                   <CardContent className="p-0">
-                    <SlideRender
-                      slide={slide}
-                      index={active}
-                      total={total}
-                    />
+                    <SlideRender slide={slide} index={active} total={total} />
                   </CardContent>
                 </Card>
               </motion.div>
@@ -328,20 +323,21 @@ ${slides.map((slide, i) => {
           </AnimatePresence>
 
           <div className="mt-4 flex items-center justify-between">
-            <Button
-              variant="outline"
-              onClick={() => setActive((i) => Math.max(0, i - 1))}
-              disabled={active === 0}
-            >
+            <Button variant="outline" onClick={goPrev} disabled={active === 0}>
               <ChevronLeft className="h-4 w-4 mr-1" /> Previous
             </Button>
-            <div className="font-mono text-sm text-muted-foreground">
-              {active + 1} / {total}
+            <div className="flex gap-1">
+              {slides.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => setActive(i)}
+                  className={`h-1.5 rounded-full transition-all ${
+                    i === active ? "w-6 bg-primary" : "w-1.5 bg-muted hover:bg-muted-foreground/40"
+                  }`}
+                />
+              ))}
             </div>
-            <Button
-              onClick={() => setActive((i) => Math.min(total - 1, i + 1))}
-              disabled={active === total - 1}
-            >
+            <Button onClick={goNext} disabled={active === total - 1}>
               Next <ChevronRight className="h-4 w-4 ml-1" />
             </Button>
           </div>
@@ -371,11 +367,11 @@ function SlideRender({
         fullscreen ? "h-full" : "aspect-[16/10]"
       } ${isCover ? "bg-secondary text-secondary-foreground" : "bg-card text-foreground"}`}
     >
-      {/* Accent strip on top */}
+      {/* Accent strip */}
       <div className={`absolute top-0 left-0 right-0 h-[3px] ${acc.bar} opacity-80`} />
 
-      {/* Background decoration */}
-      {isCover && (
+      {/* Background */}
+      {isCover ? (
         <>
           <div className="absolute inset-0 pm-grid-bg opacity-[0.06] pointer-events-none" />
           <motion.div
@@ -384,16 +380,13 @@ function SlideRender({
             animate={{ rotate: [0, 6, 0] }}
             transition={{ duration: 20, repeat: Infinity }}
           />
-          <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
         </>
-      )}
-      {!isCover && (
+      ) : (
         <div className={`absolute inset-0 bg-gradient-to-br ${acc.gradient} pointer-events-none`} />
       )}
 
-      {/* Slide content */}
       <div className="relative flex flex-col h-full p-8 md:p-12 lg:p-14">
-        {/* Slide header */}
+        {/* Header */}
         <div className="flex items-center justify-between shrink-0 mb-6">
           <span className="font-mono text-[10px] tracking-[0.25em] text-muted-foreground uppercase">
             {String(index + 1).padStart(2, "0")} / {String(total).padStart(2, "0")}
@@ -403,7 +396,7 @@ function SlideRender({
           </span>
         </div>
 
-        {/* Main content */}
+        {/* Content */}
         <div className="flex-1 flex flex-col justify-center min-h-0">
           {!isCover && <div className={`w-10 h-[3px] ${acc.bar} rounded-full mb-5 shrink-0`} />}
 
@@ -417,7 +410,6 @@ function SlideRender({
             {slide.title}
           </h2>
 
-          {/* Stat highlight */}
           {slide.stat && (
             <div className="mt-4 inline-flex flex-col shrink-0">
               <span className={`font-mono font-bold leading-none ${isCover ? "text-2xl md:text-3xl" : "text-xl md:text-2xl"} text-primary`}>
@@ -457,10 +449,8 @@ function SlideRender({
 
         {/* Footer */}
         <div className="shrink-0 flex items-center justify-between mt-4">
-          <span className="text-[9px] font-mono text-muted-foreground/50 uppercase tracking-widest">
-            PitchMind AI
-          </span>
-          <span className="text-[9px] font-mono text-muted-foreground/50">
+          <span className="text-[9px] font-mono text-muted-foreground/40 uppercase tracking-widest">PitchMind AI</span>
+          <span className="text-[9px] font-mono text-muted-foreground/40">
             {new Date().toLocaleDateString(undefined, { year: "numeric", month: "long" })}
           </span>
         </div>

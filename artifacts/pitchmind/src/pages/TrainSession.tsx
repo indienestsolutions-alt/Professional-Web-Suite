@@ -28,6 +28,7 @@ import {
   X,
   Paperclip,
   FileText,
+  Globe,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
@@ -76,6 +77,7 @@ export default function TrainSessionPage({ id }: { id: string }) {
   const [isSendingText, setIsSendingText] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [showQuestions, setShowQuestions] = useState(false);
+  const [showLangMenu, setShowLangMenu] = useState(false);
   const [uploadingDoc, setUploadingDoc] = useState(false);
   const [showReview, setShowReview] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -132,13 +134,11 @@ export default function TrainSessionPage({ id }: { id: string }) {
       if (!el) return;
       el.pause();
       el.src = url;
-      const tryPlay = () =>
-        el.play().catch((err) => {
-          if ((err as DOMException).name === "NotAllowedError") {
-            setTimeout(() => el.play().catch(() => {}), 300);
-          }
-        });
-      tryPlay();
+      el.play().catch((err) => {
+        if ((err as DOMException).name === "NotAllowedError") {
+          setTimeout(() => el.play().catch(() => {}), 300);
+        }
+      });
     } catch {}
   }, [voiceEnabled]);
 
@@ -266,15 +266,13 @@ export default function TrainSessionPage({ id }: { id: string }) {
 
   const handleFileUpload = useCallback(async (file: File) => {
     if (!file) return;
-    const maxSize = 5 * 1024 * 1024; // 5MB
-    if (file.size > maxSize) {
-      toast({ title: "File too large", description: "Maximum file size is 5MB.", variant: "destructive" });
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: "File too large", description: "Maximum 5 MB.", variant: "destructive" });
       return;
     }
     setUploadingDoc(true);
     try {
-      const arrayBuf = await file.arrayBuffer();
-      const base64 = arrayBufferToBase64(arrayBuf);
+      const base64 = arrayBufferToBase64(await file.arrayBuffer());
       const res = await fetch(`${apiBase}/sessions/${id}/upload-document`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -311,12 +309,17 @@ export default function TrainSessionPage({ id }: { id: string }) {
 
   const session = sessionQ.data;
   if (!session) {
-    return <div className="flex items-center justify-center h-screen text-muted-foreground">Session not found.</div>;
+    return (
+      <div className="flex items-center justify-center h-screen text-muted-foreground">
+        Session not found.
+      </div>
+    );
   }
 
   const finished = session.status === "finished";
   const isBusy = isRecording || isSendingVoice || isSendingText;
   const personaInitial = (session.personaName ?? "?")[0]?.toUpperCase() ?? "?";
+  const currentLang = SUPPORTED_LANGUAGES.find((l) => l.code === language) ?? SUPPORTED_LANGUAGES[0]!;
 
   const investorQuestions = (session.messages ?? [])
     .filter((m) => m.role === "investor")
@@ -330,10 +333,7 @@ export default function TrainSessionPage({ id }: { id: string }) {
         type="file"
         className="hidden"
         accept=".txt,.pdf,.doc,.docx,.md,.csv"
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) handleFileUpload(file);
-        }}
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileUpload(f); }}
       />
 
       {showReview && (
@@ -344,7 +344,7 @@ export default function TrainSessionPage({ id }: { id: string }) {
         />
       )}
 
-      {/* Questions panel overlay */}
+      {/* Questions panel backdrop */}
       <AnimatePresence>
         {showQuestions && (
           <motion.div
@@ -356,6 +356,8 @@ export default function TrainSessionPage({ id }: { id: string }) {
           />
         )}
       </AnimatePresence>
+
+      {/* Questions panel */}
       <AnimatePresence>
         {showQuestions && (
           <motion.div
@@ -368,28 +370,65 @@ export default function TrainSessionPage({ id }: { id: string }) {
             <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
               <div>
                 <p className="font-semibold text-sm">Questions asked</p>
-                <p className="text-xs text-muted-foreground">{investorQuestions.length} so far</p>
+                <p className="text-xs text-muted-foreground">{investorQuestions.length} total</p>
               </div>
               <button
                 onClick={() => setShowQuestions(false)}
-                className="h-8 w-8 flex items-center justify-center rounded-md hover:bg-muted text-muted-foreground transition-colors"
+                className="h-8 w-8 flex items-center justify-center rounded-md hover:bg-muted text-muted-foreground"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
             <div className="flex-1 overflow-y-auto p-3 space-y-2">
               {investorQuestions.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-6">No questions yet.</p>
+                <p className="text-sm text-muted-foreground text-center py-8">No questions yet.</p>
               ) : (
                 investorQuestions.map((q) => (
                   <div key={q.index} className="rounded-lg bg-muted/60 p-3">
-                    <span className="font-mono text-[10px] text-primary tracking-widest">Q{String(q.index).padStart(2, "0")}</span>
-                    <p className="text-sm mt-1 text-foreground leading-relaxed">{q.content}</p>
+                    <span className="font-mono text-[10px] text-primary tracking-widest">
+                      Q{String(q.index).padStart(2, "0")}
+                    </span>
+                    <p className="text-sm mt-1 leading-relaxed">{q.content}</p>
                   </div>
                 ))
               )}
             </div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Language picker dropdown */}
+      <AnimatePresence>
+        {showLangMenu && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-30"
+              onClick={() => setShowLangMenu(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, y: -4, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -4 }}
+              className="fixed top-14 right-24 z-40 bg-card border border-border rounded-xl shadow-xl p-1 min-w-[160px]"
+            >
+              {SUPPORTED_LANGUAGES.map((l) => (
+                <button
+                  key={l.code}
+                  onClick={() => { setLanguage(l.code); setShowLangMenu(false); }}
+                  className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
+                    l.code === language
+                      ? "bg-primary/10 text-primary font-medium"
+                      : "hover:bg-muted text-foreground"
+                  }`}
+                >
+                  {l.label}
+                </button>
+              ))}
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
 
@@ -413,17 +452,17 @@ export default function TrainSessionPage({ id }: { id: string }) {
         </div>
 
         <div className="shrink-0 flex items-center gap-1">
-          <select
-            value={language}
-            onChange={(e) => setLanguage(e.target.value)}
-            className="text-xs border border-border rounded px-1.5 py-1 bg-background text-foreground max-w-[72px]"
-            title="AI response language"
+          {/* Language selector */}
+          <button
+            onClick={() => setShowLangMenu((v) => !v)}
+            className="h-8 flex items-center gap-1.5 px-2 rounded-md hover:bg-muted text-muted-foreground transition-colors border border-border/60 text-xs font-mono"
+            title="Response language"
           >
-            {SUPPORTED_LANGUAGES.map((l) => (
-              <option key={l.code} value={l.code}>{l.code.toUpperCase()}</option>
-            ))}
-          </select>
+            <Globe className="h-3.5 w-3.5 shrink-0" />
+            {currentLang.code.toUpperCase()}
+          </button>
 
+          {/* Questions */}
           <button
             onClick={() => setShowQuestions(true)}
             className="h-8 w-8 flex items-center justify-center rounded-md hover:bg-muted text-muted-foreground transition-colors relative"
@@ -437,6 +476,7 @@ export default function TrainSessionPage({ id }: { id: string }) {
             )}
           </button>
 
+          {/* Voice toggle */}
           <button
             onClick={() => setVoiceEnabled((v) => !v)}
             className="h-8 w-8 flex items-center justify-center rounded-md hover:bg-muted text-muted-foreground transition-colors"
@@ -445,7 +485,7 @@ export default function TrainSessionPage({ id }: { id: string }) {
             {voiceEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
           </button>
 
-          {!finished && (
+          {!finished ? (
             <Button
               size="sm"
               variant="outline"
@@ -456,8 +496,7 @@ export default function TrainSessionPage({ id }: { id: string }) {
               <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
               {finish.isPending ? "Scoring…" : "End"}
             </Button>
-          )}
-          {finished && (
+          ) : (
             <Badge variant="default" className="font-mono text-[10px]">
               <Trophy className="h-3 w-3 mr-1" />DONE
             </Badge>
@@ -465,7 +504,7 @@ export default function TrainSessionPage({ id }: { id: string }) {
         </div>
       </header>
 
-      {/* Live scores */}
+      {/* Live score bar */}
       {(session.confidenceScore != null || session.clarityScore != null) && (
         <div className="shrink-0 border-b border-border/50 bg-muted/30 px-4 py-1.5 flex gap-4 overflow-x-auto">
           <ScorePill label="Confidence" value={session.confidenceScore ?? null} />
@@ -510,7 +549,7 @@ export default function TrainSessionPage({ id }: { id: string }) {
         )}
       </div>
 
-      {/* Input area */}
+      {/* Input */}
       {!finished && (
         <div className="shrink-0 border-t border-border bg-card">
           <AnimatePresence mode="wait">
@@ -522,6 +561,7 @@ export default function TrainSessionPage({ id }: { id: string }) {
                 exit={{ opacity: 0 }}
                 className="flex items-center gap-3 px-4 py-4"
               >
+                {/* Record button */}
                 <button
                   onClick={isRecording ? stopRecording : startRecording}
                   disabled={isSendingVoice || isSendingText}
@@ -550,7 +590,7 @@ export default function TrainSessionPage({ id }: { id: string }) {
                     {isRecording ? "Listening… tap to stop" : isSendingVoice ? "Processing…" : "Tap to speak"}
                   </p>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    {isRecording ? "Auto-sends after 2.5s silence" : "Auto-sends when you stop talking"}
+                    {isRecording ? "Sends after 2.5s of silence" : "Auto-sends when you stop talking"}
                   </p>
                 </div>
 
@@ -558,7 +598,7 @@ export default function TrainSessionPage({ id }: { id: string }) {
                   onClick={() => fileInputRef.current?.click()}
                   disabled={uploadingDoc}
                   className="h-9 w-9 flex items-center justify-center rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
-                  title="Upload document"
+                  title="Upload a document"
                 >
                   <Paperclip className="h-4 w-4" />
                 </button>
@@ -600,7 +640,7 @@ export default function TrainSessionPage({ id }: { id: string }) {
                   onClick={() => fileInputRef.current?.click()}
                   disabled={uploadingDoc}
                   className="h-10 w-10 flex items-center justify-center rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0 mb-0.5"
-                  title="Upload document"
+                  title="Upload a document"
                 >
                   <Paperclip className="h-4 w-4" />
                 </button>
@@ -636,10 +676,8 @@ function ScorePill({ label, value, highlight }: { label: string; value: number |
 
 function ChatMessage({ m, personaName }: { m: SessionMessage; personaName: string }) {
   if (m.role === "system") {
-    // Show document uploads differently
     if (m.content.startsWith("[Document uploaded:")) {
-      const firstLine = m.content.split("\n")[0] ?? m.content;
-      const filename = firstLine.replace("[Document uploaded: ", "").replace("]", "");
+      const filename = m.content.split("\n")[0]?.replace("[Document uploaded: ", "").replace("]", "") ?? "";
       return (
         <div className="flex justify-center my-1">
           <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground bg-muted/60 px-3 py-1 rounded-full">
@@ -673,13 +711,11 @@ function ChatMessage({ m, personaName }: { m: SessionMessage; personaName: strin
       </div>
 
       <div className={`flex flex-col gap-1 max-w-[78%] min-w-0 ${isUser ? "items-end" : "items-start"}`}>
-        <div
-          className={`rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
-            isUser
-              ? "bg-foreground text-background rounded-tr-sm"
-              : "bg-muted text-foreground rounded-tl-sm"
-          }`}
-        >
+        <div className={`rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
+          isUser
+            ? "bg-foreground text-background rounded-tr-sm"
+            : "bg-muted text-foreground rounded-tl-sm"
+        }`}>
           {m.content}
         </div>
 
@@ -731,19 +767,13 @@ function SessionReport({
       {/* Score breakdown */}
       {(session.confidenceScore != null || session.clarityScore != null || session.investorReadiness != null) && (
         <div className="grid grid-cols-3 gap-2">
-          {session.confidenceScore != null && (
-            <ScoreBlock label="Confidence" value={Math.round(session.confidenceScore)} />
-          )}
-          {session.clarityScore != null && (
-            <ScoreBlock label="Clarity" value={Math.round(session.clarityScore)} />
-          )}
-          {session.investorReadiness != null && (
-            <ScoreBlock label="Readiness" value={Math.round(session.investorReadiness)} />
-          )}
+          {session.confidenceScore != null && <ScoreBlock label="Confidence" value={Math.round(session.confidenceScore)} />}
+          {session.clarityScore != null && <ScoreBlock label="Clarity" value={Math.round(session.clarityScore)} />}
+          {session.investorReadiness != null && <ScoreBlock label="Readiness" value={Math.round(session.investorReadiness)} />}
         </div>
       )}
 
-      {/* AI summary */}
+      {/* AI verdict */}
       {session.summary && (
         <div className="rounded-xl bg-card border border-border p-3">
           <p className="text-xs font-mono text-primary uppercase tracking-widest mb-1">Investor verdict</p>
@@ -751,7 +781,7 @@ function SessionReport({
         </div>
       )}
 
-      {/* Mistakes / coaching */}
+      {/* Mistakes */}
       {(session.mistakes as { title: string; description: string; suggestion: string; severity: string }[] ?? []).length > 0 && (
         <div className="space-y-2">
           <p className="text-xs font-mono text-muted-foreground uppercase tracking-widest">What to fix</p>
@@ -768,7 +798,7 @@ function SessionReport({
         </div>
       )}
 
-      {/* Questions list in report */}
+      {/* Questions */}
       {investorQuestions.length > 0 && (
         <div>
           <button
@@ -776,7 +806,7 @@ function SessionReport({
             className="flex items-center gap-2 text-xs font-mono text-muted-foreground uppercase tracking-widest hover:text-foreground transition-colors w-full text-left"
           >
             <List className="h-3.5 w-3.5" />
-            {showAllQuestions ? "Hide" : "Show"} all {investorQuestions.length} questions asked
+            {showAllQuestions ? "Hide" : "Show"} {investorQuestions.length} questions asked
           </button>
           <AnimatePresence>
             {showAllQuestions && (
@@ -789,8 +819,10 @@ function SessionReport({
                 <div className="mt-2 space-y-1.5">
                   {investorQuestions.map((q) => (
                     <div key={q.index} className="rounded-lg bg-muted/60 px-3 py-2 flex gap-2 items-start">
-                      <span className="font-mono text-[10px] text-primary tracking-widest shrink-0 mt-0.5">Q{String(q.index).padStart(2, "0")}</span>
-                      <p className="text-xs text-foreground leading-relaxed">{q.content}</p>
+                      <span className="font-mono text-[10px] text-primary tracking-widest shrink-0 mt-0.5">
+                        Q{String(q.index).padStart(2, "0")}
+                      </span>
+                      <p className="text-xs leading-relaxed">{q.content}</p>
                     </div>
                   ))}
                 </div>
@@ -811,8 +843,8 @@ function ScoreBlock({ label, value }: { label: string; value: number }) {
   const color = value >= 75 ? "text-emerald-500" : value >= 55 ? "text-amber-500" : "text-destructive";
   const bg = value >= 75 ? "bg-emerald-500/10" : value >= 55 ? "bg-amber-500/10" : "bg-destructive/10";
   return (
-    <div className={`rounded-lg ${bg} p-2 text-center`}>
-      <div className={`font-mono text-lg font-bold ${color}`}>{value}</div>
+    <div className={`rounded-lg ${bg} p-2.5 text-center`}>
+      <div className={`font-mono text-xl font-bold ${color}`}>{value}</div>
       <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-widest mt-0.5">{label}</div>
     </div>
   );
