@@ -24,6 +24,10 @@ import {
   VolumeX,
   Keyboard,
   AlertCircle,
+  List,
+  X,
+  Paperclip,
+  FileText,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
@@ -42,16 +46,16 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
 }
 
 const SUPPORTED_LANGUAGES = [
-  { code: "en", label: "EN" },
-  { code: "es", label: "ES" },
-  { code: "fr", label: "FR" },
-  { code: "de", label: "DE" },
-  { code: "hi", label: "HI" },
-  { code: "zh", label: "ZH" },
-  { code: "ar", label: "AR" },
-  { code: "pt", label: "PT" },
-  { code: "ja", label: "JA" },
-  { code: "ko", label: "KO" },
+  { code: "en", label: "English" },
+  { code: "es", label: "Español" },
+  { code: "fr", label: "Français" },
+  { code: "de", label: "Deutsch" },
+  { code: "hi", label: "हिन्दी" },
+  { code: "zh", label: "中文" },
+  { code: "ar", label: "عربي" },
+  { code: "pt", label: "Português" },
+  { code: "ja", label: "日本語" },
+  { code: "ko", label: "한국어" },
 ];
 
 type InputMode = "voice" | "text";
@@ -71,7 +75,8 @@ export default function TrainSessionPage({ id }: { id: string }) {
   const [isSendingVoice, setIsSendingVoice] = useState(false);
   const [isSendingText, setIsSendingText] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
-  const [silenceTimer, setSilenceTimer] = useState<number | null>(null);
+  const [showQuestions, setShowQuestions] = useState(false);
+  const [uploadingDoc, setUploadingDoc] = useState(false);
   const [showReview, setShowReview] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -79,6 +84,8 @@ export default function TrainSessionPage({ id }: { id: string }) {
   const analyserRef = useRef<AnalyserNode | null>(null);
   const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const animFrameRef = useRef<number | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
   const finish = useFinishSession({
     mutation: {
       onSuccess: () => {
@@ -94,7 +101,6 @@ export default function TrainSessionPage({ id }: { id: string }) {
     }
   }, [sessionQ.data?.messages?.length]);
 
-  // Show review modal once when session first finishes
   useEffect(() => {
     if (sessionQ.data?.status === "finished") {
       const key = `pm_reviewed_${id}`;
@@ -106,8 +112,6 @@ export default function TrainSessionPage({ id }: { id: string }) {
     return undefined;
   }, [sessionQ.data?.status, id]);
 
-  // Unlock the audio element with a silent play on first user interaction
-  // so that subsequent async-triggered plays work despite browser autoplay policy
   const audioUnlockedRef = useRef(false);
   const unlockAudio = useCallback(() => {
     if (audioUnlockedRef.current || !audioPlayerRef.current) return;
@@ -130,7 +134,6 @@ export default function TrainSessionPage({ id }: { id: string }) {
       el.src = url;
       const tryPlay = () =>
         el.play().catch((err) => {
-          // If autoplay blocked, wait briefly and retry once
           if ((err as DOMException).name === "NotAllowedError") {
             setTimeout(() => el.play().catch(() => {}), 300);
           }
@@ -153,12 +156,12 @@ export default function TrainSessionPage({ id }: { id: string }) {
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error((err as any).error ?? "Send failed");
+        throw new Error((err as { error?: string }).error ?? "Send failed");
       }
       const data = await res.json() as { investorAudio?: string; autoFinished?: boolean } & PitchSessionDetail;
       if (data.investorAudio) playAudio(data.investorAudio);
       if (data.autoFinished) {
-        toast({ title: "Ready for the real room!", description: "The investor has seen enough." });
+        toast({ title: "Session complete", description: "The investor has made their decision." });
         qc.invalidateQueries({ queryKey: getListSessionsQueryKey() });
       }
       qc.invalidateQueries({ queryKey: getGetSessionQueryKey(id) });
@@ -183,12 +186,12 @@ export default function TrainSessionPage({ id }: { id: string }) {
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error((err as any).error ?? "Voice processing failed");
+        throw new Error((err as { error?: string }).error ?? "Voice processing failed");
       }
       const data = await res.json() as { transcript: string; investorAudio: string; autoFinished?: boolean } & PitchSessionDetail;
       if (data.investorAudio) playAudio(data.investorAudio);
       if (data.autoFinished) {
-        toast({ title: "Ready for the real room!", description: "The investor has seen enough." });
+        toast({ title: "Session complete", description: "The investor has made their decision." });
         qc.invalidateQueries({ queryKey: getListSessionsQueryKey() });
       }
       qc.invalidateQueries({ queryKey: getGetSessionQueryKey(id) });
@@ -202,7 +205,6 @@ export default function TrainSessionPage({ id }: { id: string }) {
   const stopRecording = useCallback(() => {
     if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
     if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-    setSilenceTimer(null);
     const recorder = mediaRecorderRef.current;
     if (!recorder || recorder.state !== "recording") return;
     setIsRecording(false);
@@ -215,7 +217,7 @@ export default function TrainSessionPage({ id }: { id: string }) {
   }, [sendVoiceBlob]);
 
   const startRecording = useCallback(async () => {
-    unlockAudio(); // unlock within the user gesture, before any async work
+    unlockAudio();
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mimeType = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"].find(
@@ -228,7 +230,6 @@ export default function TrainSessionPage({ id }: { id: string }) {
       mediaRecorderRef.current = recorder;
       setIsRecording(true);
 
-      // Silence detection
       const ctx = new AudioContext();
       const source = ctx.createMediaStreamSource(stream);
       const analyser = ctx.createAnalyser();
@@ -253,7 +254,6 @@ export default function TrainSessionPage({ id }: { id: string }) {
           if (silenceTimerRef.current) {
             clearTimeout(silenceTimerRef.current);
             silenceTimerRef.current = null;
-            setSilenceTimer(null);
           }
         }
         animFrameRef.current = requestAnimationFrame(check);
@@ -262,7 +262,38 @@ export default function TrainSessionPage({ id }: { id: string }) {
     } catch {
       toast({ title: "Microphone denied", description: "Please allow microphone access.", variant: "destructive" });
     }
-  }, [toast, stopRecording]);
+  }, [toast, stopRecording, unlockAudio]);
+
+  const handleFileUpload = useCallback(async (file: File) => {
+    if (!file) return;
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      toast({ title: "File too large", description: "Maximum file size is 5MB.", variant: "destructive" });
+      return;
+    }
+    setUploadingDoc(true);
+    try {
+      const arrayBuf = await file.arrayBuffer();
+      const base64 = arrayBufferToBase64(arrayBuf);
+      const res = await fetch(`${apiBase}/sessions/${id}/upload-document`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ fileBase64: base64, filename: file.name }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err as { error?: string }).error ?? "Upload failed");
+      }
+      toast({ title: "Document uploaded", description: `${file.name} — the investor will reference this.` });
+      qc.invalidateQueries({ queryKey: getGetSessionQueryKey(id) });
+    } catch (err) {
+      toast({ title: "Upload failed", description: err instanceof Error ? err.message : "Try again", variant: "destructive" });
+    } finally {
+      setUploadingDoc(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }, [id, apiBase, toast, qc]);
 
   if (sessionQ.isLoading) {
     return (
@@ -287,9 +318,23 @@ export default function TrainSessionPage({ id }: { id: string }) {
   const isBusy = isRecording || isSendingVoice || isSendingText;
   const personaInitial = (session.personaName ?? "?")[0]?.toUpperCase() ?? "?";
 
+  const investorQuestions = (session.messages ?? [])
+    .filter((m) => m.role === "investor")
+    .map((m, i) => ({ index: i + 1, content: m.content }));
+
   return (
     <div className="flex flex-col h-dvh overflow-hidden bg-background">
       <audio ref={audioPlayerRef} className="hidden" />
+      <input
+        ref={fileInputRef}
+        type="file"
+        className="hidden"
+        accept=".txt,.pdf,.doc,.docx,.md,.csv"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) handleFileUpload(file);
+        }}
+      />
 
       {showReview && (
         <ReviewModal
@@ -299,7 +344,56 @@ export default function TrainSessionPage({ id }: { id: string }) {
         />
       )}
 
-      {/* ── Header ── */}
+      {/* Questions panel overlay */}
+      <AnimatePresence>
+        {showQuestions && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
+            onClick={() => setShowQuestions(false)}
+          />
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {showQuestions && (
+          <motion.div
+            initial={{ x: "100%" }}
+            animate={{ x: 0 }}
+            exit={{ x: "100%" }}
+            transition={{ type: "spring", damping: 28, stiffness: 280 }}
+            className="fixed right-0 top-0 bottom-0 z-50 w-80 max-w-[90vw] bg-card border-l border-border flex flex-col shadow-2xl"
+          >
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
+              <div>
+                <p className="font-semibold text-sm">Questions asked</p>
+                <p className="text-xs text-muted-foreground">{investorQuestions.length} so far</p>
+              </div>
+              <button
+                onClick={() => setShowQuestions(false)}
+                className="h-8 w-8 flex items-center justify-center rounded-md hover:bg-muted text-muted-foreground transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-3 space-y-2">
+              {investorQuestions.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-6">No questions yet.</p>
+              ) : (
+                investorQuestions.map((q) => (
+                  <div key={q.index} className="rounded-lg bg-muted/60 p-3">
+                    <span className="font-mono text-[10px] text-primary tracking-widest">Q{String(q.index).padStart(2, "0")}</span>
+                    <p className="text-sm mt-1 text-foreground leading-relaxed">{q.content}</p>
+                  </div>
+                ))
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Header */}
       <header className="shrink-0 border-b border-border bg-card px-3 py-2.5 flex items-center gap-2 min-w-0">
         <Link href="/train">
           <a className="shrink-0 h-8 w-8 flex items-center justify-center rounded-md hover:bg-muted text-muted-foreground transition-colors">
@@ -322,19 +416,35 @@ export default function TrainSessionPage({ id }: { id: string }) {
           <select
             value={language}
             onChange={(e) => setLanguage(e.target.value)}
-            className="text-xs border border-border rounded px-1.5 py-1 bg-background text-foreground"
+            className="text-xs border border-border rounded px-1.5 py-1 bg-background text-foreground max-w-[72px]"
+            title="AI response language"
           >
             {SUPPORTED_LANGUAGES.map((l) => (
-              <option key={l.code} value={l.code}>{l.label}</option>
+              <option key={l.code} value={l.code}>{l.code.toUpperCase()}</option>
             ))}
           </select>
+
+          <button
+            onClick={() => setShowQuestions(true)}
+            className="h-8 w-8 flex items-center justify-center rounded-md hover:bg-muted text-muted-foreground transition-colors relative"
+            title="View all questions"
+          >
+            <List className="h-4 w-4" />
+            {investorQuestions.length > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-primary text-[8px] text-white flex items-center justify-center font-bold">
+                {investorQuestions.length}
+              </span>
+            )}
+          </button>
+
           <button
             onClick={() => setVoiceEnabled((v) => !v)}
             className="h-8 w-8 flex items-center justify-center rounded-md hover:bg-muted text-muted-foreground transition-colors"
-            title={voiceEnabled ? "Mute" : "Unmute"}
+            title={voiceEnabled ? "Mute investor voice" : "Unmute investor voice"}
           >
             {voiceEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
           </button>
+
           {!finished && (
             <Button
               size="sm"
@@ -344,7 +454,7 @@ export default function TrainSessionPage({ id }: { id: string }) {
               disabled={finish.isPending}
             >
               <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
-              {finish.isPending ? "…" : "End"}
+              {finish.isPending ? "Scoring…" : "End"}
             </Button>
           )}
           {finished && (
@@ -355,9 +465,9 @@ export default function TrainSessionPage({ id }: { id: string }) {
         </div>
       </header>
 
-      {/* ── Scores (live) ── */}
+      {/* Live scores */}
       {(session.confidenceScore != null || session.clarityScore != null) && (
-        <div className="shrink-0 border-b border-border/50 bg-muted/30 px-4 py-1.5 flex gap-4">
+        <div className="shrink-0 border-b border-border/50 bg-muted/30 px-4 py-1.5 flex gap-4 overflow-x-auto">
           <ScorePill label="Confidence" value={session.confidenceScore ?? null} />
           <ScorePill label="Clarity" value={session.clarityScore ?? null} />
           <ScorePill label="Readiness" value={session.investorReadiness ?? null} />
@@ -367,8 +477,8 @@ export default function TrainSessionPage({ id }: { id: string }) {
         </div>
       )}
 
-      {/* ── Messages ── */}
-      <div ref={transcriptRef} className="flex-1 overflow-y-auto px-3 py-4 space-y-2">
+      {/* Messages */}
+      <div ref={transcriptRef} className="flex-1 overflow-y-auto px-3 py-4 space-y-2 min-h-0">
         {(session.messages ?? []).map((m) => (
           <ChatMessage key={m.id} m={m} personaName={session.personaName ?? "Investor"} />
         ))}
@@ -377,17 +487,30 @@ export default function TrainSessionPage({ id }: { id: string }) {
           <div className="flex justify-start pl-2">
             <div className="flex items-center gap-2 bg-muted rounded-2xl rounded-tl-sm px-4 py-3 text-sm text-muted-foreground">
               <Sparkles className="h-3.5 w-3.5 animate-spin text-primary" />
-              {isSendingVoice ? "Thinking…" : "Thinking…"}
+              {isRecording ? "Listening…" : isSendingVoice ? "Processing voice…" : "Thinking…"}
+            </div>
+          </div>
+        )}
+
+        {uploadingDoc && (
+          <div className="flex justify-center">
+            <div className="flex items-center gap-2 bg-muted/60 rounded-full px-4 py-2 text-xs text-muted-foreground">
+              <Sparkles className="h-3 w-3 animate-spin text-primary" />
+              Uploading document…
             </div>
           </div>
         )}
 
         {finished && (
-          <SessionReport session={session} onNewSession={() => setLocation("/train/new")} />
+          <SessionReport
+            session={session}
+            investorQuestions={investorQuestions}
+            onNewSession={() => setLocation("/train/new")}
+          />
         )}
       </div>
 
-      {/* ── Input ── */}
+      {/* Input area */}
       {!finished && (
         <div className="shrink-0 border-t border-border bg-card">
           <AnimatePresence mode="wait">
@@ -399,7 +522,6 @@ export default function TrainSessionPage({ id }: { id: string }) {
                 exit={{ opacity: 0 }}
                 className="flex items-center gap-3 px-4 py-4"
               >
-                {/* Talk button */}
                 <button
                   onClick={isRecording ? stopRecording : startRecording}
                   disabled={isSendingVoice || isSendingText}
@@ -428,9 +550,18 @@ export default function TrainSessionPage({ id }: { id: string }) {
                     {isRecording ? "Listening… tap to stop" : isSendingVoice ? "Processing…" : "Tap to speak"}
                   </p>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    {isRecording ? "Auto-sends after 2.5 seconds of silence" : "Auto-sends when you stop talking"}
+                    {isRecording ? "Auto-sends after 2.5s silence" : "Auto-sends when you stop talking"}
                   </p>
                 </div>
+
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingDoc}
+                  className="h-9 w-9 flex items-center justify-center rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
+                  title="Upload document"
+                >
+                  <Paperclip className="h-4 w-4" />
+                </button>
 
                 <button
                   onClick={() => setInputMode("text")}
@@ -465,6 +596,14 @@ export default function TrainSessionPage({ id }: { id: string }) {
                     if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && draft.trim()) sendText(draft);
                   }}
                 />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingDoc}
+                  className="h-10 w-10 flex items-center justify-center rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0 mb-0.5"
+                  title="Upload document"
+                >
+                  <Paperclip className="h-4 w-4" />
+                </button>
                 <Button
                   onClick={() => sendText(draft)}
                   disabled={isSendingText || !draft.trim()}
@@ -497,9 +636,22 @@ function ScorePill({ label, value, highlight }: { label: string; value: number |
 
 function ChatMessage({ m, personaName }: { m: SessionMessage; personaName: string }) {
   if (m.role === "system") {
+    // Show document uploads differently
+    if (m.content.startsWith("[Document uploaded:")) {
+      const firstLine = m.content.split("\n")[0] ?? m.content;
+      const filename = firstLine.replace("[Document uploaded: ", "").replace("]", "");
+      return (
+        <div className="flex justify-center my-1">
+          <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground bg-muted/60 px-3 py-1 rounded-full">
+            <FileText className="h-3 w-3" />
+            {filename} uploaded
+          </span>
+        </div>
+      );
+    }
     return (
       <div className="flex justify-center my-1">
-        <span className="text-[11px] text-muted-foreground bg-muted/60 px-3 py-1 rounded-full">
+        <span className="text-[11px] text-muted-foreground bg-muted/60 px-3 py-1 rounded-full text-center max-w-xs">
           {m.content}
         </span>
       </div>
@@ -514,14 +666,13 @@ function ChatMessage({ m, personaName }: { m: SessionMessage; personaName: strin
       animate={{ opacity: 1, y: 0 }}
       className={`flex gap-2 ${isUser ? "flex-row-reverse" : "flex-row"}`}
     >
-      {/* Avatar dot */}
       <div className={`h-7 w-7 rounded-full shrink-0 flex items-center justify-center text-[11px] font-bold mt-0.5 ${
         isUser ? "bg-foreground text-background" : "bg-primary/15 text-primary"
       }`}>
         {isUser ? "Y" : personaName[0]?.toUpperCase()}
       </div>
 
-      <div className={`flex flex-col gap-1 max-w-[78%] ${isUser ? "items-end" : "items-start"}`}>
+      <div className={`flex flex-col gap-1 max-w-[78%] min-w-0 ${isUser ? "items-end" : "items-start"}`}>
         <div
           className={`rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
             isUser
@@ -532,7 +683,6 @@ function ChatMessage({ m, personaName }: { m: SessionMessage; personaName: strin
           {m.content}
         </div>
 
-        {/* Coach feedback for user messages */}
         {isUser && m.feedback && (
           <div className="flex items-start gap-1.5 px-1 max-w-full">
             <div className={`h-1.5 w-1.5 rounded-full shrink-0 mt-1.5 ${
@@ -546,28 +696,66 @@ function ChatMessage({ m, personaName }: { m: SessionMessage; personaName: strin
   );
 }
 
-function SessionReport({ session, onNewSession }: { session: PitchSessionDetail; onNewSession: () => void }) {
+function SessionReport({
+  session,
+  investorQuestions,
+  onNewSession,
+}: {
+  session: PitchSessionDetail;
+  investorQuestions: { index: number; content: string }[];
+  onNewSession: () => void;
+}) {
+  const [showAllQuestions, setShowAllQuestions] = useState(false);
+
+  const scoreColor = (v: number) =>
+    v >= 75 ? "text-emerald-500" : v >= 55 ? "text-amber-500" : "text-destructive";
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      className="mx-1 mt-4 rounded-2xl border border-primary/20 bg-primary/5 p-5"
+      className="mx-1 mt-4 rounded-2xl border border-primary/20 bg-primary/5 p-5 space-y-4"
     >
-      <div className="flex items-center gap-2 mb-3">
+      {/* Header */}
+      <div className="flex items-center gap-2">
         <Trophy className="h-4 w-4 text-primary" />
         <span className="font-semibold text-sm">Session complete</span>
         {session.overallScore != null && (
-          <span className="ml-auto font-mono text-lg font-bold text-primary">{Math.round(session.overallScore)}</span>
+          <span className={`ml-auto font-mono text-2xl font-bold ${scoreColor(session.overallScore)}`}>
+            {Math.round(session.overallScore)}
+            <span className="text-xs text-muted-foreground font-normal">/100</span>
+          </span>
         )}
       </div>
 
-      {session.summary && (
-        <p className="text-sm text-foreground mb-4">{session.summary}</p>
+      {/* Score breakdown */}
+      {(session.confidenceScore != null || session.clarityScore != null || session.investorReadiness != null) && (
+        <div className="grid grid-cols-3 gap-2">
+          {session.confidenceScore != null && (
+            <ScoreBlock label="Confidence" value={Math.round(session.confidenceScore)} />
+          )}
+          {session.clarityScore != null && (
+            <ScoreBlock label="Clarity" value={Math.round(session.clarityScore)} />
+          )}
+          {session.investorReadiness != null && (
+            <ScoreBlock label="Readiness" value={Math.round(session.investorReadiness)} />
+          )}
+        </div>
       )}
 
-      {(session.mistakes as any[] ?? []).length > 0 && (
-        <div className="space-y-2 mb-4">
-          {(session.mistakes as any[]).map((m: any, i: number) => (
+      {/* AI summary */}
+      {session.summary && (
+        <div className="rounded-xl bg-card border border-border p-3">
+          <p className="text-xs font-mono text-primary uppercase tracking-widest mb-1">Investor verdict</p>
+          <p className="text-sm text-foreground leading-relaxed">{session.summary}</p>
+        </div>
+      )}
+
+      {/* Mistakes / coaching */}
+      {(session.mistakes as { title: string; description: string; suggestion: string; severity: string }[] ?? []).length > 0 && (
+        <div className="space-y-2">
+          <p className="text-xs font-mono text-muted-foreground uppercase tracking-widest">What to fix</p>
+          {(session.mistakes as { title: string; description: string; suggestion: string; severity: string }[]).map((m, i) => (
             <div key={i} className="rounded-xl border border-border bg-card p-3">
               <div className="flex items-center gap-2 mb-1">
                 <AlertCircle className={`h-3.5 w-3.5 shrink-0 ${m.severity === "high" ? "text-destructive" : "text-amber-500"}`} />
@@ -580,9 +768,52 @@ function SessionReport({ session, onNewSession }: { session: PitchSessionDetail;
         </div>
       )}
 
+      {/* Questions list in report */}
+      {investorQuestions.length > 0 && (
+        <div>
+          <button
+            onClick={() => setShowAllQuestions((v) => !v)}
+            className="flex items-center gap-2 text-xs font-mono text-muted-foreground uppercase tracking-widest hover:text-foreground transition-colors w-full text-left"
+          >
+            <List className="h-3.5 w-3.5" />
+            {showAllQuestions ? "Hide" : "Show"} all {investorQuestions.length} questions asked
+          </button>
+          <AnimatePresence>
+            {showAllQuestions && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="overflow-hidden"
+              >
+                <div className="mt-2 space-y-1.5">
+                  {investorQuestions.map((q) => (
+                    <div key={q.index} className="rounded-lg bg-muted/60 px-3 py-2 flex gap-2 items-start">
+                      <span className="font-mono text-[10px] text-primary tracking-widest shrink-0 mt-0.5">Q{String(q.index).padStart(2, "0")}</span>
+                      <p className="text-xs text-foreground leading-relaxed">{q.content}</p>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      )}
+
       <Button size="sm" onClick={onNewSession} className="w-full">
         Start another session
       </Button>
     </motion.div>
+  );
+}
+
+function ScoreBlock({ label, value }: { label: string; value: number }) {
+  const color = value >= 75 ? "text-emerald-500" : value >= 55 ? "text-amber-500" : "text-destructive";
+  const bg = value >= 75 ? "bg-emerald-500/10" : value >= 55 ? "bg-amber-500/10" : "bg-destructive/10";
+  return (
+    <div className={`rounded-lg ${bg} p-2 text-center`}>
+      <div className={`font-mono text-lg font-bold ${color}`}>{value}</div>
+      <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-widest mt-0.5">{label}</div>
+    </div>
   );
 }
