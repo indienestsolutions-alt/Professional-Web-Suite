@@ -539,24 +539,47 @@ export default function LandingPage() {
           </div>
           <div className="relative overflow-hidden rounded-2xl">
             <div className="absolute -inset-6 pm-aurora opacity-50 pointer-events-none" />
-            <div className="relative rounded-2xl border border-border bg-card p-8">
-              <div className="font-mono text-xs text-primary tracking-widest">
-                LIVE SESSION TRANSCRIPT
+            <div className="relative rounded-2xl border border-border bg-card overflow-hidden shadow-xl">
+              {/* Session header */}
+              <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-card">
+                <div className="h-7 w-7 rounded-full bg-primary/15 text-primary flex items-center justify-center text-xs font-bold">M</div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold">Marcus · Aggressive VC</p>
+                </div>
+                <span className="font-mono text-[10px] text-muted-foreground border border-border rounded px-1.5 py-0.5">ACTIVE</span>
               </div>
-              <div className="mt-4 space-y-3 text-sm">
-                <Bubble who="Marcus, Aggressive VC" tone="investor">
+              {/* Turn + score bar */}
+              <div className="flex items-center gap-3 px-4 py-1.5 border-b border-border/60 bg-muted/30">
+                <div className="flex gap-0.5">
+                  {[...Array(10)].map((_, i) => (
+                    <div key={i} className={`h-1.5 w-1.5 rounded-full ${i < 3 ? "bg-primary" : "bg-muted-foreground/20"}`} />
+                  ))}
+                </div>
+                <span className="font-mono text-[10px] text-muted-foreground">3/10</span>
+                <div className="w-px h-3 bg-border" />
+                <span className="font-mono text-[10px] text-muted-foreground">Confidence <span className="text-foreground font-semibold">84</span></span>
+                <span className="font-mono text-[10px] text-muted-foreground">Clarity <span className="text-foreground font-semibold">81</span></span>
+              </div>
+              {/* Messages */}
+              <div className="p-4 space-y-3">
+                <Bubble who="M" tone="investor">
                   Why won't a well-funded incumbent crush you in six months?
                 </Bubble>
-                <Bubble who="You" tone="user">
-                  We own a workflow incumbents have ignored because the segment
-                  is too small for them. By the time it's worth their attention,
-                  we'll have the data moat.
+                <Bubble who="Y" tone="user">
+                  We own the workflow incumbents have ignored — the segment is
+                  too small for them now. By the time it's not, we'll have the
+                  data moat they can't replicate fast.
                 </Bubble>
-                <div className="rounded-md border border-primary/30 bg-primary/5 p-3 text-xs">
-                  <div className="font-semibold text-primary">Live coach</div>
-                  Sharp delivery. Confidence 84, clarity 81. Tighten the close
-                  with one specific number next round.
+                {/* Coaching pill */}
+                <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 px-3 py-2.5 text-xs">
+                  <div className="font-mono text-[9px] uppercase tracking-widest text-emerald-600 mb-1">Live coaching</div>
+                  <p className="text-foreground leading-relaxed">
+                    Sharp and direct. Good use of moat language. Add one concrete number in the close — "by month 18 we'll have 50k data points they don't."
+                  </p>
                 </div>
+                <Bubble who="M" tone="investor">
+                  What's your CAC and what does LTV look like at 12 months?
+                </Bubble>
               </div>
             </div>
           </div>
@@ -785,22 +808,19 @@ function Bubble({
   tone: "investor" | "user";
   children: React.ReactNode;
 }) {
+  const isUser = tone === "user";
   return (
-    <div
-      className={`rounded-md p-3 ${
-        tone === "investor"
-          ? "bg-secondary/5 border border-border"
-          : "bg-foreground text-background"
-      }`}
-    >
-      <div
-        className={`text-[10px] uppercase tracking-widest font-mono mb-1 ${
-          tone === "investor" ? "text-muted-foreground" : "text-background/70"
-        }`}
-      >
+    <div className={`flex gap-2 ${isUser ? "flex-row-reverse" : "flex-row"}`}>
+      <div className={`h-6 w-6 rounded-full shrink-0 flex items-center justify-center text-[10px] font-bold ${
+        isUser ? "bg-foreground text-background" : "bg-primary/15 text-primary"
+      }`}>
         {who}
       </div>
-      <div className="text-sm">{children}</div>
+      <div className={`rounded-2xl px-3 py-2 text-sm leading-relaxed max-w-[85%] ${
+        isUser ? "bg-foreground text-background rounded-tr-sm" : "bg-muted text-foreground rounded-tl-sm"
+      }`}>
+        {children}
+      </div>
     </div>
   );
 }

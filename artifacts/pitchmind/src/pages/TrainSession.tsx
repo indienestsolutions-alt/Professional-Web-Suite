@@ -319,6 +319,8 @@ export default function TrainSessionPage({ id }: { id: string }) {
   const finished = session.status === "finished";
   const isBusy = isRecording || isSendingVoice || isSendingText;
   const personaInitial = (session.personaName ?? "?")[0]?.toUpperCase() ?? "?";
+  const userTurnCount = (session.messages ?? []).filter((m) => m.role === "user").length;
+  const MAX_TURNS = 10;
   const currentLang = SUPPORTED_LANGUAGES.find((l) => l.code === language) ?? SUPPORTED_LANGUAGES[0]!;
 
   const investorQuestions = (session.messages ?? [])
@@ -504,8 +506,38 @@ export default function TrainSessionPage({ id }: { id: string }) {
         </div>
       </header>
 
-      {/* Live score bar */}
-      {(session.confidenceScore != null || session.clarityScore != null) && (
+      {/* Turn progress + live score bar — always visible during active session */}
+      {!finished && (
+        <div className="shrink-0 border-b border-border/50 bg-muted/30 px-4 py-1.5 flex items-center gap-4 overflow-x-auto">
+          {/* Turn progress */}
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="flex gap-0.5">
+              {[...Array(MAX_TURNS)].map((_, i) => (
+                <div
+                  key={i}
+                  className={`h-1.5 w-1.5 rounded-full transition-colors ${
+                    i < userTurnCount ? "bg-primary" : "bg-muted-foreground/25"
+                  }`}
+                />
+              ))}
+            </div>
+            <span className="font-mono text-[10px] text-muted-foreground shrink-0">
+              {userTurnCount}/{MAX_TURNS}
+            </span>
+          </div>
+          {/* Divider */}
+          {(session.confidenceScore != null || session.clarityScore != null) && (
+            <div className="w-px h-3 bg-border shrink-0" />
+          )}
+          <ScorePill label="Confidence" value={session.confidenceScore ?? null} />
+          <ScorePill label="Clarity" value={session.clarityScore ?? null} />
+          <ScorePill label="Readiness" value={session.investorReadiness ?? null} />
+          {session.overallScore != null && (
+            <ScorePill label="Overall" value={session.overallScore} highlight />
+          )}
+        </div>
+      )}
+      {finished && (session.confidenceScore != null || session.clarityScore != null) && (
         <div className="shrink-0 border-b border-border/50 bg-muted/30 px-4 py-1.5 flex gap-4 overflow-x-auto">
           <ScorePill label="Confidence" value={session.confidenceScore ?? null} />
           <ScorePill label="Clarity" value={session.clarityScore ?? null} />

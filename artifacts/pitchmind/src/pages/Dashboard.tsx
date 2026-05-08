@@ -24,6 +24,9 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Activity,
+  CheckCircle2,
+  Circle,
+  Zap,
 } from "lucide-react";
 import {
   AreaChart,
@@ -34,7 +37,7 @@ import {
   CartesianGrid,
   Tooltip as ReTooltip,
 } from "recharts";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { formatRelative, formatScore } from "@/lib/format";
 
 export default function DashboardPage() {
@@ -69,6 +72,12 @@ export default function DashboardPage() {
   const s = summary.data;
   const greetingName = user?.firstName ?? "founder";
 
+  const isNewUser =
+    !summary.isLoading &&
+    s != null &&
+    (s.ideaCount ?? 0) === 0 &&
+    (s.finishedSessionCount ?? 0) === 0;
+
   return (
     <PageContainer>
       <PageHeader
@@ -96,6 +105,62 @@ export default function DashboardPage() {
         }
       />
 
+      <AnimatePresence>
+        {isNewUser && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, height: 0 }}
+            className="mb-8"
+          >
+            <Card className="border-primary/30 bg-primary/5 overflow-hidden">
+              <CardContent className="p-6">
+                <div className="flex items-start gap-3 mb-5">
+                  <div className="h-8 w-8 rounded-lg bg-primary text-primary-foreground flex items-center justify-center shrink-0">
+                    <Zap className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-base">Start here — three steps to your first investor-ready pitch</p>
+                    <p className="text-sm text-muted-foreground mt-0.5">
+                      Most founders finish all three in under 15 minutes.
+                    </p>
+                  </div>
+                </div>
+                <div className="grid sm:grid-cols-3 gap-3">
+                  <OnboardStep
+                    num={1}
+                    done={false}
+                    icon={<Lightbulb className="h-4 w-4" />}
+                    title="Drop your idea"
+                    body="Even the half-formed one. The AI will structure it for you."
+                    cta="Create an idea"
+                    onClick={() => setLocation("/ideas")}
+                  />
+                  <OnboardStep
+                    num={2}
+                    done={false}
+                    icon={<Presentation className="h-4 w-4" />}
+                    title="Generate your deck"
+                    body="AI builds a 9-slide investor pitch from your structured idea."
+                    cta="Go to ideas"
+                    onClick={() => setLocation("/ideas")}
+                  />
+                  <OnboardStep
+                    num={3}
+                    done={false}
+                    icon={<Mic className="h-4 w-4" />}
+                    title="Pitch the investor"
+                    body="10 rounds of live AI pressure. Scored and coached after every answer."
+                    cta="Open arena"
+                    onClick={() => setLocation("/train/new")}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <StatCard
           icon={<Lightbulb className="h-4 w-4" />}
@@ -110,14 +175,14 @@ export default function DashboardPage() {
         />
         <StatCard
           icon={<Mic className="h-4 w-4" />}
-          label="Sessions completed"
+          label="Sessions done"
           value={
             summary.isLoading ? null : (s?.finishedSessionCount ?? 0).toString()
           }
         />
         <StatCard
           icon={<TrendingUp className="h-4 w-4" />}
-          label="Latest pitch score"
+          label="Latest score"
           value={summary.isLoading ? null : formatScore(s?.latestPitchScore)}
           delta={s?.improvementDelta ?? null}
           accent="accent"
@@ -134,59 +199,31 @@ export default function DashboardPage() {
                     Pitch progress
                   </div>
                   <h2 className="text-xl font-semibold mt-1">
-                    Your investor readiness over time
+                    Investor readiness over time
                   </h2>
                 </div>
-                <Badge variant="outline" className="font-mono">
-                  Best: {formatScore(s?.bestPitchScore)}
-                </Badge>
+                {(s?.bestPitchScore ?? 0) > 0 && (
+                  <Badge variant="outline" className="font-mono">
+                    Best: {formatScore(s?.bestPitchScore)}
+                  </Badge>
+                )}
               </div>
               <div className="h-72 mt-4 -mx-2">
                 {progress.isLoading ? (
                   <Skeleton className="h-full w-full rounded-md" />
                 ) : chartData.length === 0 ? (
-                  <EmptyChart
-                    onClick={() => setLocation("/train/new")}
-                  />
+                  <EmptyChart onClick={() => setLocation("/train/new")} />
                 ) : (
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={chartData}>
                       <defs>
-                        <linearGradient
-                          id="scoreGrad"
-                          x1="0"
-                          y1="0"
-                          x2="0"
-                          y2="1"
-                        >
-                          <stop
-                            offset="0%"
-                            stopColor="hsl(var(--primary))"
-                            stopOpacity={0.45}
-                          />
-                          <stop
-                            offset="100%"
-                            stopColor="hsl(var(--primary))"
-                            stopOpacity={0}
-                          />
+                        <linearGradient id="scoreGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.45} />
+                          <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0} />
                         </linearGradient>
-                        <linearGradient
-                          id="readyGrad"
-                          x1="0"
-                          y1="0"
-                          x2="0"
-                          y2="1"
-                        >
-                          <stop
-                            offset="0%"
-                            stopColor="hsl(var(--accent))"
-                            stopOpacity={0.3}
-                          />
-                          <stop
-                            offset="100%"
-                            stopColor="hsl(var(--accent))"
-                            stopOpacity={0}
-                          />
+                        <linearGradient id="readyGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="hsl(var(--accent))" stopOpacity={0.3} />
+                          <stop offset="100%" stopColor="hsl(var(--accent))" stopOpacity={0} />
                         </linearGradient>
                       </defs>
                       <CartesianGrid
@@ -249,8 +286,7 @@ export default function DashboardPage() {
               Take one pitch into the arena
             </h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              Three minutes. One idea. One investor persona. Find the weakest
-              answer and rebuild it.
+              Ten rounds. One persona. Find the weakest answer and rebuild it.
             </p>
             <div className="mt-5 space-y-2">
               <ScoreRow
@@ -264,10 +300,7 @@ export default function DashboardPage() {
                 tone="accent"
               />
             </div>
-            <Button
-              className="mt-6 w-full"
-              onClick={() => setLocation("/train/new")}
-            >
+            <Button className="mt-6 w-full" onClick={() => setLocation("/train/new")}>
               <Mic className="h-4 w-4 mr-2" />
               Start a session
             </Button>
@@ -313,12 +346,8 @@ export default function DashboardPage() {
                             {iconForActivity(item.type)}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <div className="font-medium truncate">
-                              {item.title}
-                            </div>
-                            <div className="text-sm text-muted-foreground truncate">
-                              {item.description}
-                            </div>
+                            <div className="font-medium truncate">{item.title}</div>
+                            <div className="text-sm text-muted-foreground truncate">{item.description}</div>
                           </div>
                           <div className="text-right shrink-0">
                             {item.score != null && (
@@ -373,6 +402,51 @@ export default function DashboardPage() {
         </div>
       </div>
     </PageContainer>
+  );
+}
+
+function OnboardStep({
+  num,
+  done,
+  icon,
+  title,
+  body,
+  cta,
+  onClick,
+}: {
+  num: number;
+  done: boolean;
+  icon: React.ReactNode;
+  title: string;
+  body: string;
+  cta: string;
+  onClick: () => void;
+}) {
+  return (
+    <div
+      className={`rounded-xl p-4 border transition-colors ${
+        done ? "border-emerald-500/30 bg-emerald-500/5" : "border-border bg-background"
+      }`}
+    >
+      <div className="flex items-center gap-2 mb-2">
+        <div className={`h-6 w-6 rounded-full flex items-center justify-center ${
+          done ? "bg-emerald-500 text-white" : "bg-primary/10 text-primary"
+        }`}>
+          {done ? <CheckCircle2 className="h-3.5 w-3.5" /> : <span className="font-mono text-[10px] font-bold">{num}</span>}
+        </div>
+        <div className={`h-6 w-6 flex items-center justify-center ${done ? "text-emerald-500" : "text-primary"}`}>
+          {icon}
+        </div>
+        <span className="font-semibold text-sm">{title}</span>
+      </div>
+      <p className="text-xs text-muted-foreground leading-relaxed mb-3">{body}</p>
+      <button
+        onClick={onClick}
+        className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+      >
+        {cta} <ArrowRight className="h-3 w-3" />
+      </button>
+    </div>
   );
 }
 
@@ -452,22 +526,14 @@ function ScoreRow({
           initial={{ width: 0 }}
           animate={{ width: `${value == null ? 0 : v}%` }}
           transition={{ duration: 0.8, ease: "easeOut" }}
-          className={`h-full ${
-            tone === "primary" ? "bg-primary" : "bg-accent"
-          }`}
+          className={`h-full ${tone === "primary" ? "bg-primary" : "bg-accent"}`}
         />
       </div>
     </div>
   );
 }
 
-function SectionHeading({
-  title,
-  description,
-}: {
-  title: string;
-  description?: string;
-}) {
+function SectionHeading({ title, description }: { title: string; description?: string }) {
   return (
     <div className="mb-4">
       <h2 className="font-display text-xl font-semibold">{title}</h2>
