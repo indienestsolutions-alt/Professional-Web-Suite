@@ -24,10 +24,11 @@ import { requireAuth } from "../lib/requireAuth";
 import {
   pickAIInvestorQuestion,
   scoreAndCoachTurn,
-  summarizeSession,
+  summarizeSessionAI,
   transcribeAudio,
   generateInvestorAudio,
   assessInvestorReadiness,
+  extractTextFromBase64,
 } from "../lib/pitchAi";
 import { logger } from "../lib/logger";
 
@@ -72,25 +73,20 @@ async function loadSessionDetail(sessionId: string, userId: string) {
   return { ...session, messages, mistakes: session.mistakes ?? [] };
 }
 
-async function finishSessionById(sessionId: string): Promise<void> {
-  const userMessages = await db
+async function finishSessionById(sessionId: string, ideaTitle?: string, personaSlug?: string): Promise<void> {
+  // Load full conversation for AI-powered analysis
+  const allMessages = await db
     .select()
     .from(sessionMessagesTable)
-    .where(
-      and(
-        eq(sessionMessagesTable.sessionId, sessionId),
-        eq(sessionMessagesTable.role, "user"),
-      ),
-    );
+    .where(eq(sessionMessagesTable.sessionId, sessionId))
+    .orderBy(asc(sessionMessagesTable.createdAt));
 
-  const summary = summarizeSession(
-    userMessages.map((m) => ({
-      content: m.content,
-      confidence: m.confidence,
-      clarity: m.clarity,
-      fillerWords: m.fillerWords,
-    })),
-  );
+  const fullConversation = allMessages
+    .filter((m) => m.role === "user" || m.role === "investor" || m.role === "system")
+    .map((m) => ({ role: m.role as "user" | "investor" | "system", content: m.content }));
+
+  // Use AI to analyze the full session
+  const summary = await summarizeSessionAI(fullConversation, personaSlug ?? "curious-angel", ideaTitle);
 
   await db
     .update(pitchSessionsTable)
@@ -109,7 +105,7 @@ async function finishSessionById(sessionId: string): Promise<void> {
   await db.insert(sessionMessagesTable).values({
     sessionId,
     role: "system",
-    content: `Session done. Overall score: ${summary.overallScore}. ${summary.summary}`,
+    content: `Session complete. Overall score: ${summary.overallScore}/100. ${summary.summary}`,
   });
 }
 
@@ -174,14 +170,9 @@ router.post("/sessions", async (req: Request, res: Response): Promise<void> => {
     })
     .returning();
 
-  // Generate opening question and audio in parallel
-  const [openingQuestion] = await Promise.all([
-    pickAIInvestorQuestion(persona.slug, idea, []),
-  ]);
-
-  const [openingAudioBuffer] = await Promise.all([
-    generateInvestorAudio(openingQuestion, persona.slug).catch(() => null),
-  ]);
+  // Generate opening question
+  const openingQuestion = await pickAIInvestorQuestion(persona.slug, idea, []);
+  const openingAudioBuffer = await generateInvestorAudio(openingQuestion, persona.slug).catch(() => null);
 
   await db.insert(sessionMessagesTable).values([
     {
@@ -197,7 +188,6 @@ router.post("/sessions", async (req: Request, res: Response): Promise<void> => {
   ]);
 
   const openingAudio = openingAudioBuffer ? openingAudioBuffer.toString("base64") : "";
-
   const detail = await loadSessionDetail(session.id, userId);
   res.json({ ...StartSessionResponse.parse({ ...detail! }), openingAudio });
 });
@@ -241,6 +231,47 @@ router.delete("/sessions/:id", async (req: Request, res: Response): Promise<void
     return;
   }
   res.json({ success: true });
+});
+
+// Document upload endpoint — accepts base64 encoded file content
+router.post("/sessions/:id/upload-document", async (req: Request, res: Response): Promise<void> => {
+  const params = GetSessionParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const userId = req.user!.id;
+  const { fileBase64, filename } = req.body as { fileBase64?: string; filename?: string };
+
+  if (!fileBase64 || !filename) {
+    res.status(400).json({ error: "fileBase64 and filename are required" });
+    return;
+  }
+
+  const [session] = await db
+    .select()
+    .from(pitchSessionsTable)
+    .where(and(eq(pitchSessionsTable.id, params.data.id), eq(pitchSessionsTable.userId, userId)));
+
+  if (!session) {
+    res.status(404).json({ error: "Session not found" });
+    return;
+  }
+  if (session.status === "finished") {
+    res.status(400).json({ error: "Session already finished" });
+    return;
+  }
+
+  const extractedText = extractTextFromBase64(fileBase64, filename);
+
+  // Store document upload as a system message with the extracted text
+  await db.insert(sessionMessagesTable).values({
+    sessionId: session.id,
+    role: "system",
+    content: `[Document uploaded: ${filename}]\n${extractedText.slice(0, 500)}${extractedText.length > 500 ? "..." : ""}`,
+  });
+
+  res.json({ success: true, extractedLength: extractedText.length, preview: extractedText.slice(0, 200) });
 });
 
 router.post("/sessions/:id/messages", async (req: Request, res: Response): Promise<void> => {
@@ -287,6 +318,12 @@ router.post("/sessions/:id/messages", async (req: Request, res: Response): Promi
     .filter((m) => m.role === "investor")
     .at(-1)?.content;
 
+  // Extract any uploaded document context
+  const docMessages = prevMessages.filter((m) => m.role === "system" && m.content.startsWith("[Document uploaded:"));
+  const uploadedDocContext = docMessages.length > 0
+    ? docMessages.map((m) => m.content).join("\n")
+    : undefined;
+
   // Score the founder's turn
   const score = await scoreAndCoachTurn(body.data.content, lastInvestorQuestion);
 
@@ -331,6 +368,8 @@ router.post("/sessions/:id/messages", async (req: Request, res: Response): Promi
       idea,
       conversationHistory,
       body.data.language,
+      undefined,
+      uploadedDocContext,
     ),
   ]);
 
@@ -341,7 +380,10 @@ router.post("/sessions/:id/messages", async (req: Request, res: Response): Promi
       role: "investor",
       content: readiness.closingMessage,
     });
-    await finishSessionById(session.id);
+
+    const [ideaRow] = await db.select({ title: ideasTable.title }).from(ideasTable).where(eq(ideasTable.id, session.ideaId));
+    await finishSessionById(session.id, ideaRow?.title, session.personaSlug);
+
     const [closingAudioBuffer, detail] = await Promise.all([
       generateInvestorAudio(readiness.closingMessage, session.personaSlug, body.data.language).catch(() => null),
       loadSessionDetail(session.id, userId),
@@ -425,6 +467,12 @@ router.post("/sessions/:id/voice-messages", async (req: Request, res: Response):
     .filter((m) => m.role === "investor")
     .at(-1)?.content;
 
+  // Extract any uploaded document context
+  const docMessages = prevMessages.filter((m) => m.role === "system" && m.content.startsWith("[Document uploaded:"));
+  const uploadedDocContext = docMessages.length > 0
+    ? docMessages.map((m) => m.content).join("\n")
+    : undefined;
+
   // Score the turn
   const score = await scoreAndCoachTurn(transcript, lastInvestorQuestion);
 
@@ -469,6 +517,8 @@ router.post("/sessions/:id/voice-messages", async (req: Request, res: Response):
       idea,
       conversationHistory,
       body.data.language,
+      undefined,
+      uploadedDocContext,
     ),
   ]);
 
@@ -479,7 +529,10 @@ router.post("/sessions/:id/voice-messages", async (req: Request, res: Response):
       role: "investor",
       content: readiness.closingMessage,
     });
-    await finishSessionById(session.id);
+
+    const [ideaRow] = await db.select({ title: ideasTable.title }).from(ideasTable).where(eq(ideasTable.id, session.ideaId));
+    await finishSessionById(session.id, ideaRow?.title, session.personaSlug);
+
     const [closingAudioBuffer, detail] = await Promise.all([
       generateInvestorAudio(readiness.closingMessage, session.personaSlug, body.data.language).catch(() => null),
       loadSessionDetail(session.id, userId),
@@ -531,7 +584,8 @@ router.post("/sessions/:id/finish", async (req: Request, res: Response): Promise
   }
 
   if (session.status !== "finished") {
-    await finishSessionById(session.id);
+    const [ideaRow] = await db.select({ title: ideasTable.title }).from(ideasTable).where(eq(ideasTable.id, session.ideaId));
+    await finishSessionById(session.id, ideaRow?.title, session.personaSlug);
   }
 
   const detail = await loadSessionDetail(session.id, userId);

@@ -37,6 +37,8 @@ export interface DeckSlide {
     | "traction"
     | "ask";
   bullets?: string[];
+  stat?: string;
+  statLabel?: string;
 }
 
 const STOPWORDS = new Set([
@@ -102,26 +104,27 @@ export async function validateIdea(idea: Idea): Promise<IdeaValidationResult> {
     idea.targetAudience ? `Target audience: ${idea.targetAudience}` : null,
   ].filter(Boolean).join("\n");
 
-  const prompt = `You are a senior investor who has reviewed thousands of startup pitches. Analyse this startup idea honestly and in depth.
+  const prompt = `You are a seasoned venture capitalist who has reviewed 3,000+ startup pitches and deployed over $500M in capital. Analyze this startup idea with the rigor of a real funding decision — not a hackathon judge.
 
 STARTUP IDEA:
 ${ideaContext}
 
-Evaluate it across these dimensions:
-1. Problem clarity — Is the problem real, specific, and painful? Or vague and assumed?
-2. Solution fit — Does the product actually solve the problem end-to-end, or just part of it?
-3. Market opportunity — Is there a real, sizable market? Are the numbers believable?
-4. Business model — How does money come in? Is it clear and sustainable?
-5. Competitive moat — Is the advantage real and defensible, or just "we're better"?
-6. Overall investor readiness — Would a smart investor want to hear more after this pitch?
+Deep analysis across these investment dimensions:
+1. Problem clarity & pain depth — Is the problem real, urgent, and painful enough to pay for? Or is it a vitamin, not a painkiller?
+2. Solution fit — Does the product actually solve the problem completely, or just partially? What's the MVP scope?
+3. Market opportunity — TAM/SAM/SOM logic. Are the numbers believable? Is this a billion-dollar market?
+4. Business model — Unit economics, LTV/CAC, monetization clarity. How does this become a $100M revenue business?
+5. Competitive moat — Network effects, data advantages, switching costs, IP? Or just "better UX"?
+6. Founder-market fit — Does the team have an unfair advantage here? (if evident from context)
+7. Overall investor readiness — Would a Series A VC take a follow-up meeting after this pitch?
 
-Based on your full analysis, give:
-- A realistic investor readiness score from 0-100 (be honest — most early ideas score 40-65)
-- 2-4 specific strengths (what actually works and why)
-- 2-4 specific weaknesses (what's unclear, risky, or missing — be direct)
-- 2-4 specific, actionable suggestions (concrete things to do, not generic advice)
+Give:
+- A realistic investor readiness score 0-100 (be honest — most early ideas score 35-60, great ones hit 70-80)
+- 2-4 specific strengths (what actually works and why a smart investor would care)
+- 2-4 specific weaknesses (what's unclear, risky, or missing — be direct and specific)
+- 2-4 concrete, actionable suggestions (exact things to do in the next 30 days, not generic advice)
 
-Keep language plain and simple. No jargon. Sound like a human expert giving real feedback, not a checklist.
+Language: plain English, short sentences. Sound like a human VC partner, not a checklist. Be specific to THIS startup, not generic.
 
 Reply with JSON only:
 {
@@ -133,8 +136,8 @@ Reply with JSON only:
 
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      max_completion_tokens: 700,
+      model: "gpt-4.1",
+      max_completion_tokens: 900,
       response_format: { type: "json_object" },
       messages: [{ role: "user", content: prompt }],
     });
@@ -176,6 +179,61 @@ Reply with JSON only:
   };
 }
 
+async function researchMarket(idea: Idea): Promise<string> {
+  const ideaContext = [
+    `Startup: ${idea.title}`,
+    idea.rawText ? `Description: ${idea.rawText.slice(0, 600)}` : null,
+    idea.problem ? `Problem: ${idea.problem}` : null,
+    idea.solution ? `Solution: ${idea.solution}` : null,
+    idea.market ? `Market context: ${idea.market}` : null,
+    idea.targetAudience ? `Target: ${idea.targetAudience}` : null,
+  ].filter(Boolean).join("\n");
+
+  const prompt = `You are a market research analyst at a top VC firm. Based on this startup idea, produce a concise but data-rich market research brief that will inform the pitch deck content.
+
+STARTUP:
+${ideaContext}
+
+Research and produce:
+1. TAM (Total Addressable Market) — realistic global market size with a specific dollar figure and source/logic
+2. SAM (Serviceable Addressable Market) — realistic segment this startup can reach in 3-5 years
+3. SOM (Serviceable Obtainable Market) — realistic first-year or first-18-month target with % capture logic
+4. Growth rate — annual market CAGR with rationale
+5. Key market trends — 3 specific trends making this the right time to build this
+6. Top competitors — 3-4 real competitor types (name categories, not made-up companies) and their weakness
+7. Why now — 2-3 specific reasons why this market is ready NOW (technology, behavior change, regulation shift, etc.)
+8. Customer pain severity — 1-5 scale with specific evidence
+9. Realistic revenue milestones — Year 1, Year 2, Year 3 projections with assumptions
+
+Be specific. Use real market data and logic. If you don't have exact numbers, use best-available estimates with clear reasoning. This will be used to write a real pitch deck.
+
+Reply in JSON:
+{
+  "tam": "string with dollar amount and reasoning",
+  "sam": "string with dollar amount and reasoning",
+  "som": "string with dollar amount and reasoning",
+  "cagr": "string with % and reasoning",
+  "trends": ["trend 1", "trend 2", "trend 3"],
+  "competitors": [{"name": "category", "weakness": "why they lose"}],
+  "whyNow": ["reason 1", "reason 2"],
+  "painSeverity": number,
+  "revenueMilestones": {"year1": "string", "year2": "string", "year3": "string"}
+}`;
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-4.1",
+      max_completion_tokens: 1200,
+      response_format: { type: "json_object" },
+      messages: [{ role: "user", content: prompt }],
+    });
+    return response.choices[0]?.message?.content ?? "{}";
+  } catch (err) {
+    logger.warn({ err }, "Market research failed");
+    return "{}";
+  }
+}
+
 export function generateDeckSlides(idea: Idea): {
   title: string;
   storyline: string;
@@ -211,13 +269,13 @@ export function generateDeckSlides(idea: Idea): {
       ],
     },
     {
-      title: "Who Buys This",
+      title: "Market Opportunity",
       body: idea.market ?? "A clear group of people who need this and are ready to pay for it.",
       layout: "market",
       bullets: ["Large and growing market", "Specific starting group identified", "Easy to expand from there"],
     },
     {
-      title: "How We Make Money",
+      title: "Business Model",
       body: idea.businessModel ?? "Free plan to get people in, paid plan for power users, team plans for groups.",
       layout: "business",
       bullets: ["Free plan drives word-of-mouth", "Paid plan unlocks more features", "Team plans grow revenue fast"],
@@ -229,18 +287,18 @@ export function generateDeckSlides(idea: Idea): {
       bullets: ["Full end-to-end ownership", "Gets smarter with every user", "Hard to replicate quickly"],
     },
     {
-      title: "See It In Action",
+      title: "Product Demo",
       body: "Watch the core flow: from a raw idea to a finished result in under three minutes.",
       layout: "demo",
     },
     {
-      title: "Progress & Next Steps",
+      title: "Traction & Roadmap",
       body: "Early users are active. Next: deeper features, team mode, and key partnerships.",
       layout: "traction",
       bullets: ["Real users, real activity", "Usage growing week over week", "Roadmap built from user feedback"],
     },
     {
-      title: "What We're Asking For",
+      title: "The Ask",
       body: "Join us in giving the next generation of founders the tools to think, pitch, and win.",
       layout: "ask",
       bullets: ["Strategic partners", "Pilot schools and accelerators", "Seed funding to grow the product"],
@@ -266,48 +324,75 @@ export async function generateAIDeckSlides(idea: Idea): Promise<{
     idea.targetAudience ? `Who It's For: ${idea.targetAudience}` : null,
   ].filter(Boolean).join("\n");
 
-  const systemPrompt = `You are an expert pitch deck writer who has helped hundreds of startups raise funding. You write slides that are specific, data-rich, honest, and compelling. Use plain English — short sentences, no jargon. Sound real, not corporate. Every slide must be specific to THIS startup — zero generic filler.`;
+  // Run market research in parallel with idea context prep
+  const marketResearchRaw = await researchMarket(idea);
+  let marketData: Record<string, unknown> = {};
+  try {
+    marketData = JSON.parse(marketResearchRaw);
+  } catch {
+    marketData = {};
+  }
 
-  const userPrompt = `Write a detailed 9-slide pitch deck for this startup:
+  const marketContext = Object.keys(marketData).length > 0
+    ? `\nMARKET RESEARCH DATA (use these specific numbers in your slides):\n${JSON.stringify(marketData, null, 2)}`
+    : "";
 
+  const systemPrompt = `You are a world-class pitch deck writer who has helped startups raise $2B+ in funding. You write slides that are specific, data-rich, brutally honest, and compelling enough to get a follow-up meeting. Every number is real or realistically estimated. Every claim is backed. You sound like a founder who has done their homework — not a student filling a template.
+
+Rules you never break:
+- Every slide body has at least ONE specific number or data point
+- Every bullet is a complete, specific claim (not a vague phrase)
+- No slide uses generic corporate language
+- Every slide is completely specific to THIS startup
+- Slide titles: 4-6 words maximum
+- Bullets: 8-15 words each with numbers wherever possible`;
+
+  const userPrompt = `Write a complete, investor-grade 9-slide pitch deck for this startup.
+
+STARTUP DATA:
 ${ideaContext}
+${marketContext}
 
-For EVERY slide, go deep and be specific:
-- The PROBLEM slide must describe a real, painful, everyday situation the user faces — with a specific example of who suffers and how. Include a realistic scale (e.g. "X million people face this weekly").
-- The SOLUTION slide must explain exactly what the product does in one clear flow — not features, but the outcome the user gets.
-- The MARKET slide must include real market sizing logic: TAM (total addressable market), SAM (serviceable), SOM (initial target) — use realistic numbers based on the industry. Cite the approach (e.g. "Global edtech market: $340B by 2025 — we target the $4B student pitching training niche").
-- The BUSINESS MODEL slide must explain exactly how money flows — who pays, how much, when, and what the unit economics look like.
-- The COMPETITIVE EDGE slide must name actual types of competitors (not just "existing tools") and explain specifically why this startup wins.
-- The TRACTION slide must suggest realistic early metrics or milestones even for an early-stage startup (e.g. "50 beta users, 3 school partnerships, 68% week-2 retention").
-- The ASK slide must state a specific funding amount and exactly what it will be used for (percentages or amounts per area).
+SLIDE REQUIREMENTS — be completely specific:
 
-Return a JSON object with this exact shape:
+SLIDE 1 (title): Startup name as title. Body = one punchy sentence: what it does, who it's for, and the core value prop. Include "stat" field with one striking number (e.g., "$3.4B market opportunity" or "2M students need this").
+
+SLIDE 2 (problem): Describe a REAL, painful, specific daily situation a real user faces. Name who they are and what exactly happens to them. Include real scale — how many people face this. Bullets = 3 specific pain manifestations with numbers.
+
+SLIDE 3 (solution): Explain exactly what the product does in one clear user flow — from start to outcome. Not features — the transformation. Bullets = 3 outcome statements with measurable improvements.
+
+SLIDE 4 (market): Use the market research data. State TAM/SAM/SOM explicitly. Show the growth rate. Explain why this niche is the right entry point. Bullets = TAM figure, SAM figure, market growth rate. Include "stat" field = SAM number.
+
+SLIDE 5 (business): Explain exactly how money flows — pricing tiers, who pays, when, unit economics. LTV/CAC if estimable. Bullets = 3 specific revenue mechanics with numbers. Include "stat" = target ARR at 18 months.
+
+SLIDE 6 (edge): Name real competitor categories (incumbent tools, direct competitors, DIY alternatives). Explain specifically why this startup wins — network effects, data moat, switching costs, unique access. Bullets = 3 specific moat elements.
+
+SLIDE 7 (demo): Describe the core product flow in 3 steps from the user's perspective. Make it vivid and specific — a real person doing a real thing.
+
+SLIDE 8 (traction): Even for early-stage, give realistic, specific traction data or milestones. Use the market research revenue milestones. Bullets = 3 specific metrics or milestones with numbers and timeframes.
+
+SLIDE 9 (ask): State a specific funding amount with exact breakdown. What milestones will be hit with this capital? Bullets = 3 specific use-of-funds items with % or $ amounts and the milestone each unlocks.
+
+Return JSON only:
 {
+  "storyline": "2-sentence arc of the deck story",
   "slides": [
-    { "layout": "title", "title": "...", "body": "..." },
+    { "layout": "title", "title": "...", "body": "...", "stat": "...", "statLabel": "..." },
     { "layout": "problem", "title": "...", "body": "...", "bullets": ["...", "...", "..."] },
     { "layout": "solution", "title": "...", "body": "...", "bullets": ["...", "...", "..."] },
-    { "layout": "market", "title": "...", "body": "...", "bullets": ["...", "...", "..."] },
-    { "layout": "business", "title": "...", "body": "...", "bullets": ["...", "...", "..."] },
+    { "layout": "market", "title": "...", "body": "...", "bullets": ["...", "...", "..."], "stat": "...", "statLabel": "..." },
+    { "layout": "business", "title": "...", "body": "...", "bullets": ["...", "...", "..."], "stat": "...", "statLabel": "..." },
     { "layout": "edge", "title": "...", "body": "...", "bullets": ["...", "...", "..."] },
     { "layout": "demo", "title": "...", "body": "..." },
-    { "layout": "traction", "title": "...", "body": "...", "bullets": ["...", "...", "..."] },
-    { "layout": "ask", "title": "...", "body": "...", "bullets": ["...", "...", "..."] }
+    { "layout": "traction", "title": "...", "body": "...", "bullets": ["...", "...", "..."], "stat": "...", "statLabel": "..." },
+    { "layout": "ask", "title": "...", "body": "...", "bullets": ["...", "...", "..."], "stat": "...", "statLabel": "..." }
   ]
-}
-
-Rules:
-- Title: no bullets, body = 1 punchy sentence stating what the startup does and who it's for
-- All other slides: body = 2-3 full sentences with real specifics. Bullets = 3 concrete phrases (6-10 words each, with numbers/data where possible)
-- Use plain everyday English — no buzzwords, no jargon
-- Be completely specific to THIS startup — not a template
-- Slide titles: 4-6 words max
-- Include at least one real number or data point in every slide body`;
+}`;
 
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      max_completion_tokens: 3500,
+      model: "gpt-4.1",
+      max_completion_tokens: 4000,
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: systemPrompt },
@@ -316,11 +401,11 @@ Rules:
     });
 
     const raw = response.choices[0]?.message?.content ?? "{}";
-    const parsed = JSON.parse(raw) as { slides?: DeckSlide[] };
+    const parsed = JSON.parse(raw) as { slides?: DeckSlide[]; storyline?: string };
 
     if (parsed.slides && Array.isArray(parsed.slides) && parsed.slides.length >= 8) {
       const title = `${idea.title} — Pitch Deck`;
-      const storyline = `A clear story: the real problem, the simple solution, why it works, and why now.`;
+      const storyline = parsed.storyline ?? `A clear story: the real problem, the simple solution, why it works, and why now.`;
       return { title, storyline, slides: parsed.slides };
     }
   } catch (err) {
@@ -355,6 +440,8 @@ Core rules you never break:
 - Never give more than 3 points of feedback at once.
 - Flag weak language immediately: "our market is everyone" → push back hard. "we'll go viral" → ask for actual GTM. "no real competition" → challenge directly. "we plan to..." → ask for exact timeline. "we just need 1% of the market" → destroy this logic.
 - Use simple English. Short sentences. Max 2-3 lines per paragraph.
+- NEVER repeat a question you have already asked. Track the conversation carefully.
+- Each question must be completely new and probe a DIFFERENT aspect of the business.
 
 You embody the investor persona below exactly. Stay in character throughout.
 
@@ -372,11 +459,14 @@ How you talk:
 - Never be polite for the sake of it. NEVER repeat a question you already asked.
 - Total output: 1-3 short sentences. Plain English. No jargon. No softening.
 
-Your go-to angles:
+Your go-to angles (pick fresh ones each time):
 - Revenue math: "Walk me through the revenue in 18 months."
 - Why you vs. someone with more traction right now?
 - What's the exit — who buys this company?
-- You have 60 seconds. Go.`,
+- You have 60 seconds. Go.
+- What's your CAC and LTV?
+- How defensible is your tech moat?
+- When do you hit default alive?`,
 
   "curious-angel": `${PITCHMIND_BASE}YOU ARE PRIYA — THE PEOPLE INVESTOR.
 Angel investor. You've backed 12 companies. You invest in founders first, ideas second. Warm, genuinely curious — but sharp underneath. You are testing character and conviction in every question.
@@ -389,12 +479,14 @@ How you talk:
 - NEVER sound robotic. NEVER repeat a question.
 - Total output: 1-3 short sentences. Warm but probing.
 
-Your go-to angles:
+Your go-to angles (pick fresh ones each time):
 - Why YOU specifically — what's your unfair advantage here?
 - Tell me about a time you failed badly. What did you learn?
 - If this fails in 2 years, what went wrong?
 - Would you work on this for 10 years even if it's brutally hard?
-- Have you talked to real users? Tell me about ONE specific conversation.`,
+- Have you talked to real users? Tell me about ONE specific conversation.
+- What's the hardest thing about building this right now?
+- What do your earliest users actually say about the product?`,
 
   "skeptical-judge": `${PITCHMIND_BASE}YOU ARE DANIEL — THE DEVIL'S ADVOCATE.
 15 years as a pitch competition judge and startup advisor. You've seen every pitch trick in the book. You are fair, precise, and impossible to impress without real evidence. You find holes before they become disasters.
@@ -407,12 +499,14 @@ How you talk:
 - NEVER say "interesting" without meaning it. NEVER repeat a question.
 - Total output: 1-3 short sentences. Precise and measured.
 
-Your go-to angles:
+Your go-to angles (pick fresh ones each time):
 - Why hasn't anyone built this already if the gap is so obvious?
 - What if a well-funded competitor launches this next quarter?
 - Prove to me this isn't a solution looking for a problem.
 - How did you calculate that number? Show me the logic.
-- What's the one assumption, if wrong, that kills the whole plan?`,
+- What's the one assumption, if wrong, that kills the whole plan?
+- What's your regulatory risk?
+- How long until a copycat could replicate your core feature?`,
 };
 
 const FALLBACK_QUESTIONS: Record<string, string[]> = {
@@ -424,6 +518,8 @@ const FALLBACK_QUESTIONS: Record<string, string[]> = {
     "How much does it cost to get one customer, and what do they pay you?",
     "What's the one thing that could kill this company, and what are you doing about it?",
     "If I gave you a check today, what's the first thing you spend it on?",
+    "When do you hit default alive — when does revenue cover burn?",
+    "What's your net revenue retention look like at 12 months?",
   ],
   "curious-angel": [
     "Why are YOU building this — not why the market needs it, why do YOU personally care?",
@@ -433,6 +529,8 @@ const FALLBACK_QUESTIONS: Record<string, string[]> = {
     "If this fails in 2 years, what went wrong?",
     "Would you work on this for 10 years even if it got really hard?",
     "What's the most surprising thing you've learned while building this?",
+    "Who's the one person who believed in this before anyone else did?",
+    "What do your beta users actually complain about?",
   ],
   "skeptical-judge": [
     "Why hasn't anyone built this already if the gap is so obvious?",
@@ -442,6 +540,8 @@ const FALLBACK_QUESTIONS: Record<string, string[]> = {
     "How did you calculate your market size? Walk me through it step by step.",
     "What if a well-funded competitor launches the same thing next quarter?",
     "How do you know people will pay for this — not just say they will?",
+    "What's your regulatory exposure — and have you talked to a lawyer about it?",
+    "What's the hardest technical problem you haven't solved yet?",
   ],
 };
 
@@ -451,6 +551,7 @@ export async function pickAIInvestorQuestion(
   conversationHistory: Array<{ role: "user" | "investor"; content: string }>,
   language?: string,
   ownDeckContent?: string,
+  uploadedDocContext?: string,
 ): Promise<string> {
   const systemPrompt = PERSONA_SYSTEM_PROMPTS[personaSlug] ?? PERSONA_SYSTEM_PROMPTS["curious-angel"]!;
 
@@ -464,6 +565,7 @@ export async function pickAIInvestorQuestion(
     idea.competitiveEdge ? `Why they win: ${idea.competitiveEdge}` : null,
     idea.targetAudience ? `Who they sell to: ${idea.targetAudience}` : null,
     ownDeckContent ? `\nFOUNDER'S OWN PITCH DECK CONTENT:\n${ownDeckContent.slice(0, 1200)}` : null,
+    uploadedDocContext ? `\nFOUNDER'S UPLOADED DOCUMENT:\n${uploadedDocContext.slice(0, 1000)}` : null,
   ].filter(Boolean).join("\n");
 
   const previousQuestions = conversationHistory
@@ -475,7 +577,7 @@ export async function pickAIInvestorQuestion(
     .map((m) => m.content);
 
   const languageInstruction = language && language !== "en"
-    ? `\nIMPORTANT: Ask your question in this language: ${language}. Use simple words in that language.`
+    ? `\nIMPORTANT: Respond entirely in this language: ${language}. Adapt your tone naturally — do not translate word for word, speak naturally in that language.`
     : "";
 
   const lastAnswer = previousAnswers.at(-1);
@@ -492,15 +594,17 @@ ${conversationHistory.length > 0
 ${lastQuestion ? `YOUR LAST QUESTION: "${lastQuestion}"` : ""}
 ${lastAnswer ? `FOUNDER'S LAST ANSWER: "${lastAnswer}"` : ""}
 
-QUESTIONS YOU ALREADY ASKED (do not repeat any of these):
+QUESTIONS YOU ALREADY ASKED — DO NOT REPEAT ANY OF THESE:
 ${previousQuestions.length > 0 ? previousQuestions.map((q, i) => `${i + 1}. ${q}`).join("\n") : "None yet."}
 
-Now respond in character. React to the founder's last answer emotionally and specifically, then ask your next question. Output your full response (reaction + question) in 2-3 sentences max. Nothing else.${languageInstruction}`;
+IMPORTANT: Your next question must probe a COMPLETELY DIFFERENT aspect than any question above. Cover different dimensions: revenue, team, market, competition, customers, technology, moat, timeline, etc.
+
+Now respond in character. React to the founder's last answer specifically (3-8 words), then ask your next question. Output your full response in 1-3 sentences max.${languageInstruction}`;
 
   try {
     const response = await openai.chat.completions.create({
       model: "gpt-4.1",
-      max_completion_tokens: 180,
+      max_completion_tokens: 200,
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userContent },
@@ -634,27 +738,133 @@ export interface SessionMistake {
   severity: "low" | "medium" | "high";
 }
 
-export function summarizeSession(
-  userTurns: Array<{
-    content: string;
-    confidence: number | null;
-    clarity: number | null;
-    fillerWords: number | null;
-  }>,
-): {
+export interface SessionSummaryResult {
   overallScore: number;
   confidenceScore: number;
   clarityScore: number;
   investorReadiness: number;
   summary: string;
   mistakes: SessionMistake[];
-} {
+}
+
+export async function summarizeSessionAI(
+  fullConversation: Array<{ role: "user" | "investor" | "system"; content: string }>,
+  personaSlug: string,
+  ideaTitle?: string,
+): Promise<SessionSummaryResult> {
+  const userTurns = fullConversation.filter((m) => m.role === "user");
+
   if (userTurns.length === 0) {
     return {
-      overallScore: 50,
-      confidenceScore: 50,
-      clarityScore: 50,
-      investorReadiness: 50,
+      overallScore: 30,
+      confidenceScore: 30,
+      clarityScore: 30,
+      investorReadiness: 30,
+      summary: "No answers were recorded. Start a new session and pitch at least once to get real feedback.",
+      mistakes: [],
+    };
+  }
+
+  const personaNames: Record<string, string> = {
+    "aggressive-vc": "Marcus (aggressive VC)",
+    "curious-angel": "Priya (angel investor)",
+    "skeptical-judge": "Daniel (skeptical judge)",
+  };
+  const personaName = personaNames[personaSlug] ?? "the investor";
+
+  const conversationText = fullConversation
+    .filter((m) => m.role !== "system")
+    .map((m) => `${m.role === "investor" ? personaName : "Founder"}: ${m.content}`)
+    .join("\n\n");
+
+  const prompt = `You are a senior investment partner who just observed a full pitch practice session between a founder and ${personaName}. Read the ENTIRE conversation and evaluate the founder's performance as you would before making a real investment decision.
+
+${ideaTitle ? `Startup being pitched: ${ideaTitle}\n` : ""}
+
+FULL SESSION TRANSCRIPT:
+${conversationText}
+
+Evaluate the founder across these dimensions — read every single answer carefully:
+
+1. CONFIDENCE (0-100): Did they sound certain about their numbers, direction, and decisions? Or did they hedge, guess, and backpedal? Look at word choice, directness, and whether they backed up claims.
+
+2. CLARITY (0-100): Were answers clear, concise, and easy to follow? Did they get to the point? Or did they ramble, circle back, or lose the thread?
+
+3. INVESTOR READINESS (0-100): As ${personaName}, would you take a follow-up meeting? Did they handle pressure well? Did they know their numbers? Did they give up ground when challenged?
+
+4. OVERALL SCORE (0-100): Weighted combination. Be honest — most early founders score 40-65. Only someone who genuinely impressed should score above 75.
+
+5. MISTAKES (2-4 specific ones): What concrete mistakes will cost them in a real investor meeting? Be specific — name exact moments from the transcript.
+
+6. SUMMARY (2-3 sentences): Your honest, personal verdict as ${personaName}. What did this founder do well? What will sink them? What's the single most important thing to fix?
+
+Be brutally honest. This feedback will make or break their next real pitch.
+
+Reply with JSON only:
+{
+  "confidenceScore": number,
+  "clarityScore": number,
+  "investorReadiness": number,
+  "overallScore": number,
+  "summary": "string",
+  "mistakes": [
+    {
+      "title": "short title",
+      "description": "specific description referencing what they actually said",
+      "suggestion": "concrete fix",
+      "severity": "high|medium|low"
+    }
+  ]
+}`;
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-4.1",
+      max_completion_tokens: 1000,
+      response_format: { type: "json_object" },
+      messages: [{ role: "user", content: prompt }],
+    });
+
+    const raw = response.choices[0]?.message?.content ?? "{}";
+    const parsed = JSON.parse(raw) as Partial<SessionSummaryResult>;
+
+    if (parsed.overallScore != null) {
+      return {
+        overallScore: Math.min(98, Math.max(10, Math.round(parsed.overallScore))),
+        confidenceScore: Math.min(98, Math.max(10, Math.round(parsed.confidenceScore ?? 50))),
+        clarityScore: Math.min(98, Math.max(10, Math.round(parsed.clarityScore ?? 50))),
+        investorReadiness: Math.min(98, Math.max(10, Math.round(parsed.investorReadiness ?? 50))),
+        summary: parsed.summary ?? "Session completed.",
+        mistakes: (parsed.mistakes ?? []).slice(0, 4),
+      };
+    }
+  } catch (err) {
+    logger.warn({ err }, "AI session summary failed, using heuristic fallback");
+  }
+
+  // Heuristic fallback
+  return summarizeSessionHeuristic(userTurns.map((m) => ({
+    content: m.content,
+    confidence: null,
+    clarity: null,
+    fillerWords: null,
+  })));
+}
+
+export function summarizeSessionHeuristic(
+  userTurns: Array<{
+    content: string;
+    confidence: number | null;
+    clarity: number | null;
+    fillerWords: number | null;
+  }>,
+): SessionSummaryResult {
+  if (userTurns.length === 0) {
+    return {
+      overallScore: 30,
+      confidenceScore: 30,
+      clarityScore: 30,
+      investorReadiness: 30,
       summary: "No answers were recorded. Start a new session and pitch at least once to get real feedback.",
       mistakes: [],
     };
@@ -765,7 +975,8 @@ export async function assessInvestorReadiness(
   conversationHistory: Array<{ role: "user" | "investor"; content: string }>,
   personaSlug: string,
 ): Promise<{ ready: boolean; closingMessage: string }> {
-  if (userTurns.length < 4) {
+  // Need at least 5 turns for a meaningful assessment
+  if (userTurns.length < 5) {
     return { ready: false, closingMessage: "" };
   }
 
@@ -779,7 +990,8 @@ export async function assessInvestorReadiness(
   const avgClarity = avg(userTurns.map((t) => t.clarity));
   const totalFillers = userTurns.reduce((a, t) => a + (t.fillerWords ?? 0), 0);
 
-  if (avgConf < 68 || avgClarity < 68 || totalFillers > userTurns.length * 3) {
+  // Only consider closing if performance is genuinely strong
+  if (avgConf < 72 || avgClarity < 72 || totalFillers > userTurns.length * 3) {
     return { ready: false, closingMessage: "" };
   }
 
@@ -791,11 +1003,11 @@ export async function assessInvestorReadiness(
   const personaName = personaNames[personaSlug] ?? "the investor";
 
   const recentHistory = conversationHistory
-    .slice(-8)
+    .slice(-10)
     .map((m) => `${m.role === "investor" ? personaName : "Founder"}: ${m.content}`)
     .join("\n");
 
-  const prompt = `You are ${personaName}. You've just finished a practice session with a founder and you need to give them your honest, personal verdict.
+  const prompt = `You are ${personaName}. You've just had a thorough pitch practice session with a founder. 
 
 Recent conversation:
 ${recentHistory}
@@ -806,14 +1018,14 @@ Performance stats:
 - Total filler words: ${totalFillers}
 - Turns completed: ${userTurns.length}
 
-Are they genuinely ready to walk into a real investor meeting RIGHT NOW? Only say ready=true if they've been consistently clear, confident, and specific — not just once or twice.
+Are they genuinely ready to walk into a real investor meeting RIGHT NOW? Only say ready=true if they've been consistently clear, confident, specific, and handled pressure well across ALL turns — not just once or twice.
 
-Speak directly to the founder in your voice as ${personaName}. Be real — let them feel what you actually think. If they're ready, make them feel it. If they're not, make that land too. Under 55 words.
+Speak directly to the founder in your voice as ${personaName}. Be real — let them feel what you actually think. Under 55 words. Reference something specific from the conversation.
 
 Reply with JSON only:
 {
   "ready": true or false,
-  "closingMessage": "Your direct, emotionally honest words to the founder — in your voice as ${personaName}. Specific to what you actually heard in this session."
+  "closingMessage": "Your direct, emotionally honest words to the founder — in your voice. Reference what you actually heard."
 }`;
 
   try {
@@ -832,5 +1044,18 @@ Reply with JSON only:
   } catch (err) {
     logger.warn({ err }, "Readiness assessment failed");
     return { ready: false, closingMessage: "" };
+  }
+}
+
+export function extractTextFromBase64(base64: string, filename: string): string {
+  try {
+    const buffer = Buffer.from(base64, "base64");
+    const text = buffer.toString("utf-8");
+    // Remove non-printable characters except newlines and tabs
+    const cleaned = text.replace(/[^\x09\x0A\x0D\x20-\x7E\u00A0-\uFFFF]/g, " ").trim();
+    if (cleaned.length > 50) return cleaned.slice(0, 4000);
+    return `[Document: ${filename} — content could not be extracted as text. Summarize what you know from the filename.]`;
+  } catch {
+    return `[Document: ${filename}]`;
   }
 }
